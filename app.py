@@ -1,4 +1,15 @@
 import streamlit as st
+# Sembunyikan footer, ikon Streamlit, dan menu hamburger bawaan
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .viewerBadge_container__1QSob {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+import streamlit as st
 import pandas as pd
 import sqlite3
 import os
