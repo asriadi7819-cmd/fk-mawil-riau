@@ -1,4 +1,20 @@
 import streamlit as st
+# Kode CSS khusus untuk menyembunyikan footer/tulisan "Made with Streamlit" di bawah saja
+hide_footer_style = """
+    <style>
+    /* Menyembunyikan footer Streamlit di bagian bawah */
+    footer {visibility: hidden;}
+    
+    /* Menyembunyikan link "Made with Streamlit" */
+    .viewerBadge_container__1QSob, 
+    a[href*="streamlit.io/cloud"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    </style>
+"""
+st.markdown(hide_footer_style, unsafe_allow_html=True)
+import streamlit as st
 import pandas as pd
 import sqlite3
 import os
