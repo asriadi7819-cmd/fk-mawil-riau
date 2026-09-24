@@ -1,25 +1,23 @@
 import streamlit as st
-# Kode CSS alternatif untuk menyembunyikan footer dan lencana pojok kanan bawah
+# Kode CSS pembersih total footer dan lencana Streamlit
 hide_streamlit_style = """
     <style>
-    /* Sembunyikan elemen footer bawaan */
-    footer {
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden !important; display: none !important;}
+    .stApp > footer {visibility: hidden !important; display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+    [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
+    [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
+    
+    /* Menghilangkan lencana pojok kanan bawah secara mutlak */
+    .viewerBadge_container__1QSob, 
+    div[class*="viewerBadge"], 
+    iframe[src*="streamlit.io"] {
+        display: none !important;
         visibility: hidden !important;
-        display: none !important;
-    }
-    
-    /* Sembunyikan lencana/ikon Streamlit di pojok bawah */
-    .stApp > footer {
-        display: none !important;
-    }
-    
-    div[data-testid="stStatusWidget"] {
-        visibility: hidden !important;
-        display: none !important;
-    }
-    
-    #MainMenu {
-        visibility: hidden;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
     </style>
 """
