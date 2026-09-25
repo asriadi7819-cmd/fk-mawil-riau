@@ -13,6 +13,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
+from streamlit_cookies_controller import CookieController
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -21,358 +22,365 @@ st.set_page_config(
    layout="wide"
 )
 
+# Inisialisasi Cookie Controller
+cookie_manager = CookieController()
+
 st.markdown("""
-   <style>
-   /* Styling untuk membuat menu aktif atau garis bawah penanda menu */
-   .stRadio div[role="radiogroup"] > label > div:first-child {
-       background-color: #0E6655;
-   }
-   
-   /* Efek garis bawah/border elegan pada header menu aktif */
-   h1 {
-       border-bottom: 3px solid #0E6655;
-       padding-bottom: 10px;
-   }
-   </style>
+    <style>
+    /* Styling untuk membuat menu aktif atau garis bawah penanda menu */
+    .stRadio div[role="radiogroup"] > label > div:first-child {
+        background-color: #0E6655;
+    }
+    
+    /* Efek garis bawah/border elegan pada header menu aktif */
+    h1 {
+        border-bottom: 3px solid #0E6655;
+        padding-bottom: 10px;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 # Buat folder penyimpanan file otomatis jika belum ada
 UPLOAD_DIR = "uploads_foto"
 if not os.path.exists(UPLOAD_DIR):
-   os.makedirs(UPLOAD_DIR)
+    os.makedirs(UPLOAD_DIR)
 
 # Fungsi untuk mengonversi gambar ke Base64 agar terbaca di HTML Streamlit
 def get_image_base64(image_path):
-   if image_path:
-       clean_path = str(image_path).split("|")[0].strip()
-       if clean_path and os.path.exists(clean_path):
-           with open(clean_path, "rb") as img_file:
-               encoded = base64.b64encode(img_file.read()).decode()
-               ext = clean_path.split('.')[-1].lower()
-               if ext == 'png':
-                   mime = 'image/png'
-               elif ext in ['jpg', 'jpeg']:
-                   mime = 'image/jpeg'
-               else:
-                   mime = 'image/jpeg'
-               return f"data:{mime};base64,{encoded}"
-   return None
+    if image_path:
+        clean_path = str(image_path).split("|")[0].strip()
+        if clean_path and os.path.exists(clean_path):
+            with open(clean_path, "rb") as img_file:
+                encoded = base64.b64encode(img_file.read()).decode()
+                ext = clean_path.split('.')[-1].lower()
+                if ext == 'png':
+                    mime = 'image/png'
+                elif ext in ['jpg', 'jpeg']:
+                    mime = 'image/jpeg'
+                else:
+                    mime = 'image/jpeg'
+                return f"data:{mime};base64,{encoded}"
+    return None
 
 # Daftar 12 Kabupaten/Kota di Provinsi Riau
 DAFTAR_KAB_KOTA = [
-   "Pekanbaru", "Dumai", "Rokan Hilir", "Bengkalis", 
-   "Kampar", "Siak", "Pelalawan", "Indragiri Hulu", 
-   "Indragiri Hilir", "Kuantan Singingi", "Kepulauan Meranti", "Rokan Hulu"
+    "Pekanbaru", "Dumai", "Rokan Hilir", "Bengkalis", 
+    "Kampar", "Siak", "Pelalawan", "Indragiri Hulu", 
+    "Indragiri Hilir", "Kuantan Singingi", "Kepulauan Meranti", "Rokan Hulu"
 ]
 
 # --- INISIALISASI DATABASE SQLITE ---
 def init_db():
-   conn = sqlite3.connect('fk_mawil_riau.db')
-   cursor = conn.cursor()
-   
-   # Tabel Anggota
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS anggota (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           nama TEXT,
-           sub_mawil TEXT,
-           jenis_kelamin TEXT,
-           alamat TEXT,
-           status TEXT,
-           letnan_ijazah TEXT,
-           tanggal_ijazah TEXT,
-           kontak TEXT,
-           foto TEXT
-       )
-   ''')
-   
-   # Tabel Struktur Pengurus Inti & Ketua Sub Mawil
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS struktur_pengurus (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           jabatan TEXT UNIQUE,
-           nama_pejabat TEXT,
-           kontak TEXT,
-           foto TEXT
-       )
-   ''')
-   
-   # Tabel Keuangan Lama (Kompatibilitas)
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS keuangan (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           tanggal TEXT,
-           jenis TEXT,
-           sub_mawil TEXT,
-           jumlah REAL,
-           keterangan TEXT
-       )
-   ''')
+    conn = sqlite3.connect('fk_mawil_riau.db')
+    cursor = conn.cursor()
+    
+    # Tabel Anggota
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS anggota (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT,
+            sub_mawil TEXT,
+            jenis_kelamin TEXT,
+            alamat TEXT,
+            status TEXT,
+            letnan_ijazah TEXT,
+            tanggal_ijazah TEXT,
+            kontak TEXT,
+            foto TEXT
+        )
+    ''')
+    
+    # Tabel Struktur Pengurus Inti & Ketua Sub Mawil
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS struktur_pengurus (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            jabatan TEXT UNIQUE,
+            nama_pejabat TEXT,
+            kontak TEXT,
+            foto TEXT
+        )
+    ''')
+    
+    # Tabel Keuangan Lama (Kompatibilitas)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS keuangan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tanggal TEXT,
+            jenis TEXT,
+            sub_mawil TEXT,
+            jumlah REAL,
+            keterangan TEXT
+        )
+    ''')
 
-   # Tabel Rekening Tujuan Transfer
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS rekening_tujuan (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           nama_bank TEXT,
-           nomor_rekening TEXT,
-           atas_nama TEXT,
-           keterangan TEXT
-       )
-   ''')
+    # Tabel Rekening Tujuan Transfer
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS rekening_tujuan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama_bank TEXT,
+            nomor_rekening TEXT,
+            atas_nama TEXT,
+            keterangan TEXT
+        )
+    ''')
 
-   # Tabel Cashflow Transaksi & Bukti Transfer Mandiri
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS cashflow_transaksi (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           kategori TEXT,
-           pengirim TEXT,
-           sub_mawil TEXT,
-           tanggal TEXT,
-           jumlah REAL,
-           jenis_arus TEXT,
-           keterangan TEXT,
-           bukti_transfer TEXT
-       )
-   ''')
-   
-   # Tabel Pengumuman
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS pengumuman (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           waktu TEXT,
-           judul TEXT,
-           isi TEXT,
-           pembuat TEXT,
-           foto_pengumuman TEXT
-       )
-   ''')
-   
-   # Tabel Galeri Umum
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS galeri_umum (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           penulis TEXT,
-           sub_mawil TEXT,
-           waktu TEXT,
-           konten TEXT,
-           foto_galeri TEXT,
-           tipe TEXT
-       )
-   ''')
+    # Tabel Cashflow Transaksi & Bukti Transfer Mandiri
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS cashflow_transaksi (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kategori TEXT,
+            pengirim TEXT,
+            sub_mawil TEXT,
+            tanggal TEXT,
+            jumlah REAL,
+            jenis_arus TEXT,
+            keterangan TEXT,
+            bukti_transfer TEXT
+        )
+    ''')
+    
+    # Tabel Pengumuman
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pengumuman (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            waktu TEXT,
+            judul TEXT,
+            isi TEXT,
+            pembuat TEXT,
+            foto_pengumuman TEXT
+        )
+    ''')
+    
+    # Tabel Galeri Umum
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS galeri_umum (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            penulis TEXT,
+            sub_mawil TEXT,
+            waktu TEXT,
+            konten TEXT,
+            foto_galeri TEXT,
+            tipe TEXT
+        )
+    ''')
 
-   # Tabel Galeri Resmi Admin
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS galeri_resmi (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           judul TEXT,
-           kategori TEXT,
-           waktu TEXT,
-           foto_resmi TEXT
-       )
-   ''')
+    # Tabel Galeri Resmi Admin
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS galeri_resmi (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            judul TEXT,
+            kategori TEXT,
+            waktu TEXT,
+            foto_resmi TEXT
+        )
+    ''')
 
-   # Tabel Reaksi Postingan
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS reaksi_posting (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           post_id INTEGER,
-           nama_sanfk TEXT,
-           reaksi TEXT,
-           UNIQUE(post_id, nama_sanfk)
-       )
-   ''')
+    # Tabel Reaksi Postingan
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS reaksi_posting (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            nama_sanfk TEXT,
+            reaksi TEXT,
+            UNIQUE(post_id, nama_sanfk)
+        )
+    ''')
 
-   # Tabel Reaksi Galeri Resmi
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS reaksi_resmi (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           post_id INTEGER,
-           nama_sanfk TEXT,
-           reaksi TEXT,
-           UNIQUE(post_id, nama_sanfk)
-       )
-   ''')
+    # Tabel Reaksi Galeri Resmi
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS reaksi_resmi (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            nama_sanfk TEXT,
+            reaksi TEXT,
+            UNIQUE(post_id, nama_sanfk)
+        )
+    ''')
 
-   # Tabel Komentar Postingan
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS komentar_posting (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           post_id INTEGER,
-           nama_sanfk TEXT,
-           waktu TEXT,
-           komentar TEXT
-       )
-   ''')
-   
-   # Tabel Jadwal Rutinan
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS jadwal_rutinan (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           sub_mawil TEXT,
-           tanggal TEXT,
-           keterangan TEXT
-       )
-   ''')
-   
-   # Tabel RSVP SanFK
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS rsvp (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           nama TEXT,
-           sub_mawil TEXT,
-           tanggal TEXT,
-           status_rsvp TEXT
-       )
-   ''')
-   
-   # Tabel Aktual Kehadiran
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS aktual_hadir (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           nama TEXT,
-           sub_mawil TEXT,
-           tanggal TEXT,
-           waktu_input TEXT
-       )
-   ''')
-   
-   # Tabel Jadwal Kopdar & Baksos
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS jadwal_kopdar_baksos (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           kategori TEXT,
-           sub_mawil_tuan_rumah TEXT,
-           tanggal TEXT,
-           lokasi TEXT,
-           nominal_dana REAL,
-           keterangan TEXT
-       )
-   ''')
-   
-   # Tabel RSVP Kopdar & Baksos
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS rsvp_kopdar_baksos (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           nama TEXT,
-           sub_mawil TEXT,
-           jadwal_id INTEGER,
-           status_rsvp TEXT
-       )
-   ''')
-   
-   # Tabel Aktual Kehadiran Kopdar & Baksos
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS aktual_hadir_kopdar_baksos (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           nama TEXT,
-           sub_mawil TEXT,
-           jadwal_id INTEGER,
-           waktu_input TEXT
-       )
-   ''')
+    # Tabel Komentar Postingan
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS komentar_posting (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            nama_sanfk TEXT,
+            waktu TEXT,
+            komentar TEXT
+        )
+    ''')
+    
+    # Tabel Jadwal Rutinan
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS jadwal_rutinan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sub_mawil TEXT,
+            tanggal TEXT,
+            keterangan TEXT
+        )
+    ''')
+    
+    # Tabel RSVP SanFK
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS rsvp (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT,
+            sub_mawil TEXT,
+            tanggal TEXT,
+            status_rsvp TEXT
+        )
+    ''')
+    
+    # Tabel Aktual Kehadiran
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS aktual_hadir (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT,
+            sub_mawil TEXT,
+            tanggal TEXT,
+            waktu_input TEXT
+        )
+    ''')
+    
+    # Tabel Jadwal Kopdar & Baksos
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS jadwal_kopdar_baksos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kategori TEXT,
+            sub_mawil_tuan_rumah TEXT,
+            tanggal TEXT,
+            lokasi TEXT,
+            nominal_dana REAL,
+            keterangan TEXT
+        )
+    ''')
+    
+    # Tabel RSVP Kopdar & Baksos
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS rsvp_kopdar_baksos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT,
+            sub_mawil TEXT,
+            jadwal_id INTEGER,
+            status_rsvp TEXT
+        )
+    ''')
+    
+    # Tabel Aktual Kehadiran Kopdar & Baksos
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS aktual_hadir_kopdar_baksos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT,
+            sub_mawil TEXT,
+            jadwal_id INTEGER,
+            waktu_input TEXT
+        )
+    ''')
 
-   # Tabel Khusus Klasifikasi Captcha per Role Pengurus
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS pengaturan_captcha (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           role_pengurus TEXT UNIQUE,
-           kode_captcha TEXT
-       )
-   ''')
+    # Tabel Khusus Klasifikasi Captcha per Role Pengurus
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pengaturan_captcha (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role_pengurus TEXT UNIQUE,
+            kode_captcha TEXT
+        )
+    ''')
 
-   # Tabel Users / Akun Login
-   cursor.execute('''
-       CREATE TABLE IF NOT EXISTS users (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           username TEXT,
-           password TEXT,
-           role TEXT,
-           sub_wilayah TEXT,
-           no_hp TEXT,
-           nama_sanfk TEXT
-       )
-   ''')
-   
-   # --- MIGRASI OTOMATIS JIKA KOLOM BELUM ADA ---
-   try:
-       cursor.execute("ALTER TABLE users ADD COLUMN no_hp TEXT")
-   except sqlite3.OperationalError:
-       pass 
+    # Tabel Users / Akun Login
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            password TEXT,
+            role TEXT,
+            sub_wilayah TEXT,
+            no_hp TEXT,
+            nama_sanfk TEXT
+        )
+    ''')
+    
+    # --- MIGRASI OTOMATIS JIKA KOLOM BELUM ADA ---
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN no_hp TEXT")
+    except sqlite3.OperationalError:
+        pass 
 
-   try:
-       cursor.execute("ALTER TABLE users ADD COLUMN sub_wilayah TEXT")
-   except sqlite3.OperationalError:
-       pass 
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN sub_wilayah TEXT")
+    except sqlite3.OperationalError:
+        pass 
 
-   try:
-       cursor.execute("ALTER TABLE users ADD COLUMN nama_sanfk TEXT")
-   except sqlite3.OperationalError:
-       pass 
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN nama_sanfk TEXT")
+    except sqlite3.OperationalError:
+        pass 
 
-   conn.commit()
-   
-   # Inisialisasi default captcha per role pengurus
-   default_captchas = [
-       ("Ketua Mawil", "MAWIL123"),
-       ("Sekretaris Mawil", "SEK123"),
-       ("Bendahara Mawil", "KAS123"),
-       ("Admin Dokumentasi Mawil", "DOK123")
-   ]
-   for r_p, k_c in default_captchas:
-       cursor.execute("INSERT OR IGNORE INTO pengaturan_captcha (role_pengurus, kode_captcha) VALUES (?, ?)", (r_p, k_c))
-   conn.commit()
+    conn.commit()
+    
+    default_captchas = [
+        ("Ketua Mawil", "MAWIL123"),
+        ("Sekretaris Mawil", "SEK123"),
+        ("Bendahara Mawil", "KAS123"),
+        ("Admin Dokumentasi Mawil", "DOK123")
+    ]
+    for r_p, k_c in default_captchas:
+        cursor.execute("INSERT OR IGNORE INTO pengaturan_captcha (role_pengurus, kode_captcha) VALUES (?, ?)", (r_p, k_c))
+    conn.commit()
 
-   jabatan_default = [
-       "Ketua Mawil", 
-       "Bendahara Mawil", 
-       "Sekretaris Mawil", 
-       "Admin Dokumentasi Mawil"
-   ] + [f"Ketua Sub Mawil - {kab}" for kab in DAFTAR_KAB_KOTA]
-   
-   for jab in jabatan_default:
-       cursor.execute("INSERT OR IGNORE INTO struktur_pengurus (jabatan, nama_pejabat, kontak, foto) VALUES (?, ?, ?, ?)", (jab, "(Belum Ditetapkan)", "-", ""))
+    jabatan_default = [
+        "Ketua Mawil", 
+        "Bendahara Mawil", 
+        "Sekretaris Mawil", 
+        "Admin Dokumentasi Mawil"
+    ] + [f"Ketua Sub Mawil - {kab}" for kab in DAFTAR_KAB_KOTA]
+    
+    for jab in jabatan_default:
+        cursor.execute("INSERT OR IGNORE INTO struktur_pengurus (jabatan, nama_pejabat, kontak, foto) VALUES (?, ?, ?, ?)", (jab, "(Belum Ditetapkan)", "-", ""))
 
-   # Masukkan akun default jika tabel users kosong
-   cursor.execute("SELECT COUNT(*) FROM users")
-   if cursor.fetchone()[0] == 0:
-       default_users = [
-           ("superadmin", "super123", "Superadmin", "-", "-", "Superadmin"),
-           ("admin", "admin123", "Ketua Mawil", "-", "-", "Ketua Mawil"),
-           ("bendahara", "bendahara123", "Bendahara Mawil", "-", "-", "Bendahara Mawil"),
-           ("sekretaris", "sekretaris123", "Sekretaris Mawil", "-", "-", "Sekretaris Mawil"),
-           ("dokumentasi", "dok123", "Admin Dokumentasi Mawil", "-", "-", "Admin Dokumentasi Mawil"),
-           ("ketua_sub", "sub123", "Ketua Sub Mawil", "Pekanbaru", "-", "Ketua Sub Pekanbaru"),
-           ("sanfk", "sanfk123", "SanFK", "-", "081234567890", "SanFK Default")
-       ]
-       cursor.executemany("INSERT OR IGNORE INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", default_users)
+    cursor.execute("SELECT COUNT(*) FROM users")
+    if cursor.fetchone()[0] == 0:
+        default_users = [
+            ("superadmin", "super123", "Superadmin", "-", "-", "Superadmin"),
+            ("admin", "admin123", "Ketua Mawil", "-", "-", "Ketua Mawil"),
+            ("bendahara", "bendahara123", "Bendahara Mawil", "-", "-", "Bendahara Mawil"),
+            ("sekretaris", "sekretaris123", "Sekretaris Mawil", "-", "-", "Sekretaris Mawil"),
+            ("dokumentasi", "dok123", "Admin Dokumentasi Mawil", "-", "-", "Admin Dokumentasi Mawil"),
+            ("ketua_sub", "sub123", "Ketua Sub Mawil", "Pekanbaru", "-", "Ketua Sub Pekanbaru"),
+            ("sanfk", "sanfk123", "SanFK", "-", "081234567890", "SanFK Default")
+        ]
+        cursor.executemany("INSERT OR IGNORE INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", default_users)
 
-   conn.commit()
-   conn.close()
+    conn.commit()
+    conn.close()
 
 init_db()
 
 def get_data(query, params=()):
-   conn = sqlite3.connect('fk_mawil_riau.db')
-   df = pd.read_sql(query, conn, params=params)
-   conn.close()
-   return df
+    conn = sqlite3.connect('fk_mawil_riau.db')
+    df = pd.read_sql(query, conn, params=params)
+    conn.close()
+    return df
 
 def execute_query(query, params=()):
-   conn = sqlite3.connect('fk_mawil_riau.db')
-   cursor = conn.cursor()
-   cursor.execute(query, params)
-   conn.commit()
-   conn.close()
+    conn = sqlite3.connect('fk_mawil_riau.db')
+    cursor = conn.cursor()
+    cursor.execute(query, params)
+    conn.commit()
+    conn.close()
 
-# --- INISIALISASI SESSION STATE UNTUK LOGIN & REGISTRASI OTP ---
+# --- AMBIL COOKIES SATU PER SATU DENGAN AMAN (MENGHINDARI ATTRIBUTE ERROR) ---
+cookie_logged_in = cookie_manager.get("fk_logged_in")
+cookie_username = cookie_manager.get("fk_username")
+cookie_role = cookie_manager.get("fk_role")
+cookie_nama_sanfk = cookie_manager.get("fk_nama_sanfk")
+
+# --- INISIALISASI SESSION STATE & COOKIE SYNC ---
 if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+    st.session_state.logged_in = True if cookie_logged_in == "True" else False
 if "username" not in st.session_state:
-    st.session_state.username = ""
+    st.session_state.username = cookie_username if cookie_username else ""
 if "role" not in st.session_state:
-    st.session_state.role = ""
+    st.session_state.role = cookie_role if cookie_role else ""
 if "nama_sanfk" not in st.session_state:
-    st.session_state.nama_sanfk = ""
+    st.session_state.nama_sanfk = cookie_nama_sanfk if cookie_nama_sanfk else ""
 if "otp_code" not in st.session_state:
     st.session_state.otp_code = ""
 
@@ -401,6 +409,13 @@ if not st.session_state.logged_in:
                 st.session_state.username = login_username
                 st.session_state.role = user_row[1]
                 st.session_state.nama_sanfk = user_row[2] if user_row[2] else login_username
+                
+                # SIMPAN KE COOKIE AGAR TIDAK LOGOUT SAAT REFRESH DI PWA
+                cookie_manager.set('fk_logged_in', 'True', max_age=2592000)
+                cookie_manager.set('fk_username', login_username, max_age=2592000)
+                cookie_manager.set('fk_role', user_row[1], max_age=2592000)
+                cookie_manager.set('fk_nama_sanfk', st.session_state.nama_sanfk, max_age=2592000)
+                
                 st.success("Login berhasil!")
                 st.rerun()
             else:
@@ -515,6 +530,12 @@ if not st.session_state.logged_in:
 # Jika sudah login, tampilkan nama SanFK dan tombol Logout di sidebar
 st.sidebar.success(f"Masuk sebagai: **{st.session_state.nama_sanfk}** ({st.session_state.role})")
 if st.sidebar.button("Keluar (Logout)", use_container_width=True):
+    # HAPUS COOKIE SAAT LOGOUT
+    cookie_manager.set('fk_logged_in', 'False', max_age=0)
+    cookie_manager.set('fk_username', '', max_age=0)
+    cookie_manager.set('fk_role', '', max_age=0)
+    cookie_manager.set('fk_nama_sanfk', '', max_age=0)
+    
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.role = ""
@@ -547,15 +568,15 @@ elif role == "Ketua Sub Mawil":
 st.sidebar.divider()
 
 list_menu = [
-   "Galeri & Feed Umum",
-   "Beranda & Pengumuman",
-   "Manajemen SanFK & KTA",
-   "Agenda & Rutinan Dzikir",
-   "Agenda Kopdar Mawil & Baksos",
-   "Keuangan & Kotak Hijau",
-   "Layanan Santunan & Kontak",
-   "Galeri Resmi (Admin)",
-   "Manajemen Akun & Role"
+    "Galeri & Feed Umum",
+    "Beranda & Pengumuman",
+    "Manajemen SanFK & KTA",
+    "Agenda & Rutinan Dzikir",
+    "Agenda Kopdar Mawil & Baksos",
+    "Keuangan & Kotak Hijau",
+    "Layanan Santunan & Kontak",
+    "Galeri Resmi (Admin)",
+    "Manajemen Akun & Role"
 ]
 
 if role != "Superadmin":
@@ -588,6 +609,7 @@ if role != "Superadmin":
 if not list_menu:
     list_menu = ["Beranda & Pengumuman"]
 
+# PENDEFINISIAN VARIABEL MENU
 menu = st.sidebar.radio("Navigasi Menu", list_menu)
 
 # --- HALAMAN KHUSUS SUPERADMIN: MANAJEMEN AKUN & ROLE ---
@@ -733,7 +755,6 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
             if uploaded_db is not None:
                 if st.button("Timpa & Pulihkan Database", type="primary", use_container_width=True):
                     try:
-                        # Simpan file yang diunggah menimpa database aktif
                         with open("fk_mawil_riau.db", "wb") as f:
                             f.write(uploaded_db.getbuffer())
                         st.success("Database berhasil dipulihkan! Memuat ulang aplikasi...")
