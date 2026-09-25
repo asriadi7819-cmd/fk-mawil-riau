@@ -14,9 +14,6 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 
-# --- IMPORT COOKIES CONTROLLER ---
-from streamlit_cookies_controller import CookieController
-
 # Konfigurasi Halaman
 st.set_page_config(
    page_title="FK Mawil Riau",
