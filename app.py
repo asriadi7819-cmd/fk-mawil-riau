@@ -21,9 +21,6 @@ st.set_page_config(
    layout="wide"
 )
 
-# Inisialisasi Cookie Controller
-cookie_controller = CookieController()
-
 st.markdown("""
    <style>
    /* Styling untuk membuat menu aktif atau garis bawah penanda menu */
@@ -298,19 +295,19 @@ def init_db():
    
    # --- MIGRASI OTOMATIS JIKA KOLOM BELUM ADA ---
    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN no_hp TEXT")
+       cursor.execute("ALTER TABLE users ADD COLUMN no_hp TEXT")
    except sqlite3.OperationalError:
-        pass 
+       pass 
 
    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN sub_wilayah TEXT")
+       cursor.execute("ALTER TABLE users ADD COLUMN sub_wilayah TEXT")
    except sqlite3.OperationalError:
-        pass 
+       pass 
 
    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN nama_sanfk TEXT")
+       cursor.execute("ALTER TABLE users ADD COLUMN nama_sanfk TEXT")
    except sqlite3.OperationalError:
-        pass 
+       pass 
 
    conn.commit()
    
@@ -322,7 +319,7 @@ def init_db():
        ("Admin Dokumentasi Mawil", "DOK123")
    ]
    for r_p, k_c in default_captchas:
-        cursor.execute("INSERT OR IGNORE INTO pengaturan_captcha (role_pengurus, kode_captcha) VALUES (?, ?)", (r_p, k_c))
+       cursor.execute("INSERT OR IGNORE INTO pengaturan_captcha (role_pengurus, kode_captcha) VALUES (?, ?)", (r_p, k_c))
    conn.commit()
 
    jabatan_default = [
@@ -333,21 +330,21 @@ def init_db():
    ] + [f"Ketua Sub Mawil - {kab}" for kab in DAFTAR_KAB_KOTA]
    
    for jab in jabatan_default:
-        cursor.execute("INSERT OR IGNORE INTO struktur_pengurus (jabatan, nama_pejabat, kontak, foto) VALUES (?, ?, ?, ?)", (jab, "(Belum Ditetapkan)", "-", ""))
+       cursor.execute("INSERT OR IGNORE INTO struktur_pengurus (jabatan, nama_pejabat, kontak, foto) VALUES (?, ?, ?, ?)", (jab, "(Belum Ditetapkan)", "-", ""))
 
    # Masukkan akun default jika tabel users kosong
    cursor.execute("SELECT COUNT(*) FROM users")
    if cursor.fetchone()[0] == 0:
-        default_users = [
-            ("superadmin", "super123", "Superadmin", "-", "-", "Superadmin"),
-            ("admin", "admin123", "Ketua Mawil", "-", "-", "Ketua Mawil"),
-            ("bendahara", "bendahara123", "Bendahara Mawil", "-", "-", "Bendahara Mawil"),
-            ("sekretaris", "sekretaris123", "Sekretaris Mawil", "-", "-", "Sekretaris Mawil"),
-            ("dokumentasi", "dok123", "Admin Dokumentasi Mawil", "-", "-", "Admin Dokumentasi Mawil"),
-            ("ketua_sub", "sub123", "Ketua Sub Mawil", "Pekanbaru", "-", "Ketua Sub Pekanbaru"),
-            ("sanfk", "sanfk123", "SanFK", "-", "081234567890", "SanFK Default")
-        ]
-        cursor.executemany("INSERT OR IGNORE INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", default_users)
+       default_users = [
+           ("superadmin", "super123", "Superadmin", "-", "-", "Superadmin"),
+           ("admin", "admin123", "Ketua Mawil", "-", "-", "Ketua Mawil"),
+           ("bendahara", "bendahara123", "Bendahara Mawil", "-", "-", "Bendahara Mawil"),
+           ("sekretaris", "sekretaris123", "Sekretaris Mawil", "-", "-", "Sekretaris Mawil"),
+           ("dokumentasi", "dok123", "Admin Dokumentasi Mawil", "-", "-", "Admin Dokumentasi Mawil"),
+           ("ketua_sub", "sub123", "Ketua Sub Mawil", "Pekanbaru", "-", "Ketua Sub Pekanbaru"),
+           ("sanfk", "sanfk123", "SanFK", "-", "081234567890", "SanFK Default")
+       ]
+       cursor.executemany("INSERT OR IGNORE INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", default_users)
 
    conn.commit()
    conn.close()
@@ -367,21 +364,15 @@ def execute_query(query, params=()):
    conn.commit()
    conn.close()
 
-# --- AMBIL DATA COOKIE UNTUK PERSISTENT LOGIN ---
-cookie_logged_in = cookie_controller.get("logged_in")
-cookie_username = cookie_controller.get("username")
-cookie_role = cookie_controller.get("role")
-cookie_nama_sanfk = cookie_controller.get("nama_sanfk")
-
-# --- INISIALISASI SESSION STATE ---
+# --- INISIALISASI SESSION STATE UNTUK LOGIN & REGISTRASI OTP ---
 if "logged_in" not in st.session_state:
-    st.session_state.logged_in = cookie_logged_in if cookie_logged_in == True else False
+    st.session_state.logged_in = False
 if "username" not in st.session_state:
-    st.session_state.username = cookie_username if cookie_username else ""
+    st.session_state.username = ""
 if "role" not in st.session_state:
-    st.session_state.role = cookie_role if cookie_role else ""
+    st.session_state.role = ""
 if "nama_sanfk" not in st.session_state:
-    st.session_state.nama_sanfk = cookie_nama_sanfk if cookie_nama_sanfk else ""
+    st.session_state.nama_sanfk = ""
 if "otp_code" not in st.session_state:
     st.session_state.otp_code = ""
 
@@ -406,19 +397,10 @@ if not st.session_state.logged_in:
             conn.close()
             
             if user_row and user_row[0] == login_password:
-                # Set Session State
                 st.session_state.logged_in = True
                 st.session_state.username = login_username
                 st.session_state.role = user_row[1]
                 st.session_state.nama_sanfk = user_row[2] if user_row[2] else login_username
-                
-                # Set Cookies (Bertahan selama 30 hari)
-                expire_days = 30
-                cookie_controller.set("logged_in", True, max_age=expire_days * 86400)
-                cookie_controller.set("username", login_username, max_age=expire_days * 86400)
-                cookie_controller.set("role", user_row[1], max_age=expire_days * 86400)
-                cookie_controller.set("nama_sanfk", user_row[2] if user_row[2] else login_username, max_age=expire_days * 86400)
-                
                 st.success("Login berhasil!")
                 st.rerun()
             else:
@@ -516,7 +498,7 @@ if not st.session_state.logged_in:
                     reg_hp = db_hp
                     
                     cursor.execute("INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
-                                    (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk))
+                                   (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk))
                     conn.commit()
                     conn.close()
                     st.sidebar.success("Pendaftaran berhasil! Silakan pindah ke tab Login.")
@@ -533,18 +515,10 @@ if not st.session_state.logged_in:
 # Jika sudah login, tampilkan nama SanFK dan tombol Logout di sidebar
 st.sidebar.success(f"Masuk sebagai: **{st.session_state.nama_sanfk}** ({st.session_state.role})")
 if st.sidebar.button("Keluar (Logout)", use_container_width=True):
-    # Hapus Session State
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.role = ""
     st.session_state.nama_sanfk = ""
-    
-    # Hapus Cookies
-    cookie_controller.remove("logged_in")
-    cookie_controller.remove("username")
-    cookie_controller.remove("role")
-    cookie_controller.remove("nama_sanfk")
-    
     st.rerun()
 
 st.sidebar.divider()
@@ -759,6 +733,7 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
             if uploaded_db is not None:
                 if st.button("Timpa & Pulihkan Database", type="primary", use_container_width=True):
                     try:
+                        # Simpan file yang diunggah menimpa database aktif
                         with open("fk_mawil_riau.db", "wb") as f:
                             f.write(uploaded_db.getbuffer())
                         st.success("Database berhasil dipulihkan! Memuat ulang aplikasi...")
