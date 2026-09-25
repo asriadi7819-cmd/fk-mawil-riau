@@ -1,27 +1,4 @@
 import streamlit as st
-# Kode CSS pembersih total footer dan lencana Streamlit
-hide_streamlit_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden !important; display: none !important;}
-    .stApp > footer {visibility: hidden !important; display: none !important;}
-    [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-    [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
-    [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
-    
-    /* Menghilangkan lencana pojok kanan bawah secara mutlak */
-    .viewerBadge_container__1QSob, 
-    div[class*="viewerBadge"], 
-    iframe[src*="streamlit.io"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-    </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 import pandas as pd
 import sqlite3
 import os
