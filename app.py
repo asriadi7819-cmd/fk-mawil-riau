@@ -171,7 +171,6 @@ def init_db():
         )
     ''')
     
-    # Migrasi aman untuk kolom nama_fb jika tabel sudah ada sebelumnya
     try:
         cursor.execute("ALTER TABLE anggota ADD COLUMN nama_fb TEXT")
     except sqlite3.OperationalError:
@@ -433,12 +432,22 @@ def get_data(query, params=()):
     return df
 
 def execute_query(query, params=()):
-    conn = sqlite3.connect('fk_mawil_riau.db')
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    conn.commit()
-    conn.close()
-    backup_db_to_github()
+    # 1. Simpan/Commit secara aman ke database lokal SQLite terlebih dahulu
+    try:
+        conn = sqlite3.connect('fk_mawil_riau.db')
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Gagal menyimpan ke database lokal: {e}")
+        return
+
+    # 2. Backup online ke GitHub dipisah agar tidak memblokir simpan lokal jika koneksi/token terganggu
+    try:
+        backup_db_to_github()
+    except Exception as e:
+        print(f"Info: Backup GitHub dilewati sementara: {e}")
 
 try:
     cookie_logged_in = cookie_manager.get("fk_logged_in")
@@ -460,7 +469,6 @@ if "nama_sanfk" not in st.session_state:
 role = st.session_state.role
 sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
 
-# Ambil sub wilayah jika user adalah Ketua Sub Mawil
 sub_mawil_aktif_terpilih = "-"
 if role == "Ketua Sub Mawil":
     df_sub_C = get_data("SELECT sub_wilayah FROM users WHERE username = ?", (st.session_state.username,))
@@ -646,7 +654,6 @@ if not list_menu:
     list_menu = ["Beranda & Pengumuman"]
 
 menu = st.sidebar.radio("Navigasi Menu", list_menu)
-
 # --- HALAMAN KHUSUS SUPERADMIN: MANAJEMEN AKUN & ROLE ---
 if menu == "Manajemen Akun & Role" and role == "Superadmin":
     st.title("🛡️ Manajemen Akun & Role (Superadmin)")
