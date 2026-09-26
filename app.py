@@ -36,7 +36,6 @@ def download_db_from_github():
         with open("fk_mawil_riau.db", "wb") as f:
             f.write(file_content.decoded_content)
     except Exception:
-        # Jika file belum ada di GitHub, biarkan membuat baru secara lokal
         pass
 
 # Unduh database terbaru dari GitHub sebelum program membaca/membuat database
@@ -538,58 +537,56 @@ if not st.session_state.logged_in:
             if not reg_username or not reg_password:
                 st.sidebar.warning("Username dan Password wajib diisi!")
             else:
-                conn = sqlite3.connect('fk_mawil_riau.db')
-                cursor = conn.cursor()
-                try:
-                    cursor.execute("SELECT COUNT(*) FROM users WHERE username = ?", (reg_username.strip(),))
-                    if cursor.fetchone()[0] > 0:
-                        st.sidebar.error(f"Gagal! Username '{reg_username.strip()}' sudah digunakan.")
-                        conn.close()
-                        st.stop()
-                    
-                    if reg_role in pengurus_inti_list:
-                        cursor.execute("SELECT COUNT(*) FROM users WHERE role = ?", (reg_role,))
-                        if cursor.fetchone()[0] > 0:
-                            st.sidebar.error(f"Gagal! Role **{reg_role}** sudah terdaftar dalam sistem dan hanya boleh ada 1 orang.")
-                            conn.close()
-                            st.stop()
-                    
-                    if reg_role == "Ketua Sub Mawil":
-                        cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Ketua Sub Mawil' AND sub_wilayah = ?", (reg_sub_wilayah,))
-                        if cursor.fetchone()[0] > 0:
-                            st.sidebar.error(f"Gagal! Ketua Sub Mawil untuk wilayah **{reg_sub_wilayah}** sudah terdaftar dan hanya boleh ada 1 orang.")
-                            conn.close()
-                            st.stop()
+                # Menggunakan variabel penanda validasi tanpa st.stop()
+                gagal_daftar = False
+                
+                # Cek ketersediaan username
+                df_cek_usr = get_data("SELECT COUNT(*) as jml FROM users WHERE username = ?", (reg_username.strip(),))
+                if not df_cek_usr.empty and df_cek_usr.iloc[0]['jml'] > 0:
+                    st.sidebar.error(f"Gagal! Username '{reg_username.strip()}' sudah digunakan.")
+                    gagal_daftar = True
+                
+                # Cek role pengurus inti unik
+                if not gagal_daftar and reg_role in pengurus_inti_list:
+                    df_cek_role = get_data("SELECT COUNT(*) as jml FROM users WHERE role = ?", (reg_role,))
+                    if not df_cek_role.empty and df_cek_role.iloc[0]['jml'] > 0:
+                        st.sidebar.error(f"Gagal! Role **{reg_role}** sudah terdaftar dalam sistem dan hanya boleh ada 1 orang.")
+                        gagal_daftar = True
+                
+                # Cek ketua sub mawil unik per wilayah
+                if not gagal_daftar and reg_role == "Ketua Sub Mawil":
+                    df_cek_sub = get_data("SELECT COUNT(*) as jml FROM users WHERE role = 'Ketua Sub Mawil' AND sub_wilayah = ?", (reg_sub_wilayah,))
+                    if not df_cek_sub.empty and df_cek_sub.iloc[0]['jml'] > 0:
+                        st.sidebar.error(f"Gagal! Ketua Sub Mawil untuk wilayah **{reg_sub_wilayah}** sudah terdaftar.")
+                        gagal_daftar = True
 
-                    if reg_role in pengurus_inti_list:
-                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ? AND nama_sanfk = ?", (reg_role, f"ROLE_{reg_role}"))
-                        res_cap = cursor.fetchone()
-                        saved_captcha = res_cap[0] if res_cap else ""
-                        
-                        if reg_role_captcha_input.strip() != saved_captcha:
-                            st.sidebar.error(f"Kode Captcha untuk role **{reg_role}** tidak valid!")
-                            conn.close()
-                            st.stop()
-                    elif reg_role == "SanFK":
-                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE nama_sanfk = ?", (selected_nama_sanfk,))
-                        res_cap_sanfk = cursor.fetchone()
-                        saved_captcha_sanfk = res_cap_sanfk[0] if res_cap_sanfk else ""
-                        
-                        if saved_captcha_sanfk and reg_role_captcha_input.strip() != saved_captcha_sanfk:
-                            st.sidebar.error("Kode Verifikasi / Captcha SanFK tidak valid!")
-                            conn.close()
-                            st.stop()
+                # Validasi captcha / kode khusus
+                if not gagal_daftar and reg_role in pengurus_inti_list:
+                    df_cap = get_data("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ? AND nama_sanfk = ?", (reg_role, f"ROLE_{reg_role}"))
+                    saved_captcha = df_cap.iloc[0]['kode_captcha'] if not df_cap.empty else ""
                     
-                    reg_hp = db_hp
+                    if reg_role_captcha_input.strip() != saved_captcha:
+                        st.sidebar.error(f"Kode Captcha untuk role **{reg_role}** tidak valid!")
+                        gagal_daftar = True
+                elif not gagal_daftar and reg_role == "SanFK":
+                    df_cap_s = get_data("SELECT kode_captcha FROM pengaturan_captcha WHERE nama_sanfk = ?", (selected_nama_sanfk,))
+                    saved_captcha_sanfk = df_cap_s.iloc[0]['kode_captcha'] if not df_cap_s.empty else ""
                     
-                    # Menggunakan execute_query agar otomatis memicu backup ke GitHub
-                    conn.close() # Tutup koneksi manual sebelumnya
-                    execute_query("INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
-                                   (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk))
-                    
-                    st.sidebar.success("Pendaftaran berhasil! Silakan pindah ke tab Login.")
-                except sqlite3.OperationalError as e:
-                    st.sidebar.error(f"Terjadi kesalahan database: {e}")
+                    if saved_captcha_sanfk and reg_role_captcha_input.strip() != saved_captcha_sanfk:
+                        st.sidebar.error("Kode Verifikasi / Captcha SanFK tidak valid!")
+                        gagal_daftar = True
+                
+                # Jika seluruh validasi sukses, lakukan insert data ke database
+                if not gagal_daftar:
+                    try:
+                        reg_hp = db_hp
+                        execute_query(
+                            "INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
+                            (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk)
+                        )
+                        st.sidebar.success("🎉 Pendaftaran berhasil! Silakan beralih ke tab Login di atas.")
+                    except Exception as e:
+                        st.sidebar.error(f"Terjadi kesalahan database: {e}")
                 
     st.stop()
 
