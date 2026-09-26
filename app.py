@@ -537,30 +537,25 @@ if not st.session_state.logged_in:
             if not reg_username or not reg_password:
                 st.sidebar.warning("Username dan Password wajib diisi!")
             else:
-                # Menggunakan variabel penanda validasi tanpa st.stop()
                 gagal_daftar = False
                 
-                # Cek ketersediaan username
                 df_cek_usr = get_data("SELECT COUNT(*) as jml FROM users WHERE username = ?", (reg_username.strip(),))
                 if not df_cek_usr.empty and df_cek_usr.iloc[0]['jml'] > 0:
                     st.sidebar.error(f"Gagal! Username '{reg_username.strip()}' sudah digunakan.")
                     gagal_daftar = True
                 
-                # Cek role pengurus inti unik
                 if not gagal_daftar and reg_role in pengurus_inti_list:
                     df_cek_role = get_data("SELECT COUNT(*) as jml FROM users WHERE role = ?", (reg_role,))
                     if not df_cek_role.empty and df_cek_role.iloc[0]['jml'] > 0:
                         st.sidebar.error(f"Gagal! Role **{reg_role}** sudah terdaftar dalam sistem dan hanya boleh ada 1 orang.")
                         gagal_daftar = True
                 
-                # Cek ketua sub mawil unik per wilayah
                 if not gagal_daftar and reg_role == "Ketua Sub Mawil":
                     df_cek_sub = get_data("SELECT COUNT(*) as jml FROM users WHERE role = 'Ketua Sub Mawil' AND sub_wilayah = ?", (reg_sub_wilayah,))
                     if not df_cek_sub.empty and df_cek_sub.iloc[0]['jml'] > 0:
                         st.sidebar.error(f"Gagal! Ketua Sub Mawil untuk wilayah **{reg_sub_wilayah}** sudah terdaftar.")
                         gagal_daftar = True
 
-                # Validasi captcha / kode khusus
                 if not gagal_daftar and reg_role in pengurus_inti_list:
                     df_cap = get_data("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ? AND nama_sanfk = ?", (reg_role, f"ROLE_{reg_role}"))
                     saved_captcha = df_cap.iloc[0]['kode_captcha'] if not df_cap.empty else ""
@@ -576,7 +571,6 @@ if not st.session_state.logged_in:
                         st.sidebar.error("Kode Verifikasi / Captcha SanFK tidak valid!")
                         gagal_daftar = True
                 
-                # Jika seluruh validasi sukses, lakukan insert data ke database
                 if not gagal_daftar:
                     try:
                         reg_hp = db_hp
@@ -768,6 +762,10 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
     with tab4:
         st.subheader("🔑 Pengaturan Kode Verifikasi / Captcha per SanFK & Role")
         st.markdown("Atur kode verifikasi/captcha unik untuk masing-masing anggota SanFK secara individual atau berdasarkan role pengurus.")
+        
+        # Inisialisasi session_state agar tidak terjadi error AttributeError
+        if "gen_captcha_code" not in st.session_state:
+            st.session_state.gen_captcha_code = f"SanFK-{random.randint(1000, 9999)}"
         
         df_anggota_cap = get_data("SELECT nama FROM anggota")
         list_sanfk_cap = df_anggota_cap['nama'].tolist() if not df_anggota_cap.empty else []
