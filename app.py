@@ -27,12 +27,9 @@ cookie_manager = CookieController()
 
 st.markdown("""
     <style>
-    /* Styling untuk membuat menu aktif atau garis bawah penanda menu */
     .stRadio div[role="radiogroup"] > label > div:first-child {
         background-color: #0E6655;
     }
-    
-    /* Efek garis bawah/border elegan pada header menu aktif */
     h1 {
         border-bottom: 3px solid #0E6655;
         padding-bottom: 10px;
@@ -45,7 +42,6 @@ UPLOAD_DIR = "uploads_foto"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-# Fungsi untuk mengonversi gambar ke Base64 agar terbaca di HTML Streamlit
 def get_image_base64(image_path):
     if image_path:
         clean_path = str(image_path).split("|")[0].strip()
@@ -53,16 +49,10 @@ def get_image_base64(image_path):
             with open(clean_path, "rb") as img_file:
                 encoded = base64.b64encode(img_file.read()).decode()
                 ext = clean_path.split('.')[-1].lower()
-                if ext == 'png':
-                    mime = 'image/png'
-                elif ext in ['jpg', 'jpeg']:
-                    mime = 'image/jpeg'
-                else:
-                    mime = 'image/jpeg'
+                mime = 'image/png' if ext == 'png' else 'image/jpeg'
                 return f"data:{mime};base64,{encoded}"
     return None
 
-# Daftar 12 Kabupaten/Kota di Provinsi Riau
 DAFTAR_KAB_KOTA = [
     "Pekanbaru", "Dumai", "Rokan Hilir", "Bengkalis", 
     "Kampar", "Siak", "Pelalawan", "Indragiri Hulu", 
@@ -74,7 +64,6 @@ def init_db():
     conn = sqlite3.connect('fk_mawil_riau.db')
     cursor = conn.cursor()
     
-    # Tabel Anggota
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS anggota (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +79,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Struktur Pengurus Inti & Ketua Sub Mawil
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS struktur_pengurus (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +89,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Keuangan Lama (Kompatibilitas)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS keuangan (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,7 +100,6 @@ def init_db():
         )
     ''')
 
-    # Tabel Rekening Tujuan Transfer
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS rekening_tujuan (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,7 +110,6 @@ def init_db():
         )
     ''')
 
-    # Tabel Cashflow Transaksi & Bukti Transfer Mandiri
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS cashflow_transaksi (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,7 +124,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Pengumuman
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pengumuman (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -151,7 +135,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Galeri Umum
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS galeri_umum (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -164,7 +147,6 @@ def init_db():
         )
     ''')
 
-    # Tabel Galeri Resmi Admin
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS galeri_resmi (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -175,7 +157,6 @@ def init_db():
         )
     ''')
 
-    # Tabel Reaksi Postingan
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS reaksi_posting (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,7 +167,6 @@ def init_db():
         )
     ''')
 
-    # Tabel Reaksi Galeri Resmi
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS reaksi_resmi (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -197,7 +177,6 @@ def init_db():
         )
     ''')
 
-    # Tabel Komentar Postingan
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS komentar_posting (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -208,7 +187,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Jadwal Rutinan
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS jadwal_rutinan (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -218,7 +196,6 @@ def init_db():
         )
     ''')
     
-    # Tabel RSVP SanFK
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS rsvp (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -229,7 +206,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Aktual Kehadiran
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS aktual_hadir (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -240,7 +216,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Jadwal Kopdar & Baksos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS jadwal_kopdar_baksos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,7 +228,6 @@ def init_db():
         )
     ''')
     
-    # Tabel RSVP Kopdar & Baksos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS rsvp_kopdar_baksos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -264,7 +238,6 @@ def init_db():
         )
     ''')
     
-    # Tabel Aktual Kehadiran Kopdar & Baksos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS aktual_hadir_kopdar_baksos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,16 +248,24 @@ def init_db():
         )
     ''')
 
-    # Tabel Khusus Klasifikasi Captcha per Role Pengurus
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS token_pendaftaran (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama_sanfk TEXT,
+            token TEXT UNIQUE,
+            status_pakai TEXT DEFAULT 'Belum'
+        )
+    ''')
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pengaturan_captcha (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            role_pengurus TEXT UNIQUE,
+            role_pengurus TEXT,
+            nama_sanfk TEXT UNIQUE,
             kode_captcha TEXT
         )
     ''')
 
-    # Tabel Users / Akun Login
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -297,7 +278,6 @@ def init_db():
         )
     ''')
     
-    # --- MIGRASI OTOMATIS JIKA KOLOM BELUM ADA ---
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN no_hp TEXT")
     except sqlite3.OperationalError:
@@ -313,16 +293,11 @@ def init_db():
     except sqlite3.OperationalError:
         pass 
 
-    conn.commit()
-    
-    default_captchas = [
-        ("Ketua Mawil", "MAWIL123"),
-        ("Sekretaris Mawil", "SEK123"),
-        ("Bendahara Mawil", "KAS123"),
-        ("Admin Dokumentasi Mawil", "DOK123")
-    ]
-    for r_p, k_c in default_captchas:
-        cursor.execute("INSERT OR IGNORE INTO pengaturan_captcha (role_pengurus, kode_captcha) VALUES (?, ?)", (r_p, k_c))
+    try:
+        cursor.execute("ALTER TABLE pengaturan_captcha ADD COLUMN nama_sanfk TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
 
     jabatan_default = [
@@ -366,13 +341,12 @@ def execute_query(query, params=()):
     conn.commit()
     conn.close()
 
-# --- AMBIL COOKIES SATU PER SATU DENGAN AMAN (MENGHINDARI ATTRIBUTE ERROR) ---
+# --- AMBIL COOKIES ---
 cookie_logged_in = cookie_manager.get("fk_logged_in")
 cookie_username = cookie_manager.get("fk_username")
 cookie_role = cookie_manager.get("fk_role")
 cookie_nama_sanfk = cookie_manager.get("fk_nama_sanfk")
 
-# --- INISIALISASI SESSION STATE & COOKIE SYNC ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = True if cookie_logged_in == "True" else False
 if "username" not in st.session_state:
@@ -381,8 +355,14 @@ if "role" not in st.session_state:
     st.session_state.role = cookie_role if cookie_role else ""
 if "nama_sanfk" not in st.session_state:
     st.session_state.nama_sanfk = cookie_nama_sanfk if cookie_nama_sanfk else ""
-if "otp_code" not in st.session_state:
-    st.session_state.otp_code = ""
+
+if "gen_captcha_code" not in st.session_state:
+    st.session_state.gen_captcha_code = f"mwRIAU-{random.randint(1000, 9999)}"
+
+role = st.session_state.role
+
+# Tentukan sanfk_aktif_terpilih secara global atau default jika session sudah ada
+sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
 
 # --- SIDEBAR: FORM LOGIN, REGISTER ATAU MENU UTAMA ---
 st.sidebar.title("🕌 FK MAWIL RIAU")
@@ -410,7 +390,6 @@ if not st.session_state.logged_in:
                 st.session_state.role = user_row[1]
                 st.session_state.nama_sanfk = user_row[2] if user_row[2] else login_username
                 
-                # SIMPAN KE COOKIE AGAR TIDAK LOGOUT SAAT REFRESH DI PWA
                 cookie_manager.set('fk_logged_in', 'True', max_age=2592000)
                 cookie_manager.set('fk_username', login_username, max_age=2592000)
                 cookie_manager.set('fk_role', user_row[1], max_age=2592000)
@@ -438,33 +417,20 @@ if not st.session_state.logged_in:
             selected_nama_sanfk = st.sidebar.selectbox("Pilih Nama Anda (SanFK)", list_nama_sanfk)
             
             selected_row = df_anggota_reg[df_anggota_reg['nama'] == selected_nama_sanfk].iloc[0]
-            db_hp = str(selected_row['kontak']) if pd.notna(selected_row['kontak']) else ""
+            db_hp = str(selected_row['kontak']) if pd.notna(selected_row['kontak']) else "-"
         else:
             st.sidebar.warning("Belum ada data SanFK di Manajemen SanFK. Harap input data anggota terlebih dahulu.")
             selected_nama_sanfk = ""
-            db_hp = ""
+            db_hp = "-"
             
         reg_username = st.sidebar.text_input("Ketik Username (Untuk Login)")
-            
-        st.sidebar.info(f"Nomor WhatsApp Terdaftar:\n**{db_hp}**")
-        
-        if st.sidebar.button("📤 Generate Kode Unik WhatsApp"):
-            if db_hp and db_hp != "-":
-                generated_otp = str(random.randint(1000, 9999))
-                st.session_state.otp_code = generated_otp
-                st.sidebar.success("Kode unik berhasil dibuat!")
-            else:
-                st.sidebar.error("Nomor WhatsApp anggota belum diatur di Manajemen SanFK!")
-        
-        if st.session_state.otp_code:
-            st.sidebar.warning(f"🔑 **Simulasi Kode Unik WA (Offline):** {st.session_state.otp_code}")
-        
-        reg_otp_input = st.sidebar.text_input("Masukkan Kode Unik WhatsApp")
         
         pengurus_inti_list = ["Ketua Mawil", "Bendahara Mawil", "Sekretaris Mawil", "Admin Dokumentasi Mawil"]
-        reg_captcha_input = "-"
+        reg_role_captcha_input = "-"
         if reg_role in pengurus_inti_list:
-            reg_captcha_input = st.sidebar.text_input(f"Validasi Kode Captcha ({reg_role})")
+            reg_role_captcha_input = st.sidebar.text_input(f"Validasi Kode Khusus Role ({reg_role})")
+        elif reg_role == "SanFK":
+            reg_role_captcha_input = st.sidebar.text_input("Validasi Kode Verifikasi/Captcha SanFK")
             
         reg_password = st.sidebar.text_input("Buat Password", type="password")
             
@@ -495,18 +461,22 @@ if not st.session_state.logged_in:
                             conn.close()
                             st.stop()
 
-                    if not st.session_state.otp_code or reg_otp_input.strip() != st.session_state.otp_code:
-                        st.sidebar.error("Kode unik WhatsApp salah atau belum digenerate!")
-                        conn.close()
-                        st.stop()
-                        
                     if reg_role in pengurus_inti_list:
-                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ?", (reg_role,))
+                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ? AND nama_sanfk = ?", (reg_role, f"ROLE_{reg_role}"))
                         res_cap = cursor.fetchone()
                         saved_captcha = res_cap[0] if res_cap else ""
                         
-                        if reg_captcha_input.strip() != saved_captcha:
+                        if reg_role_captcha_input.strip() != saved_captcha:
                             st.sidebar.error(f"Kode Captcha untuk role **{reg_role}** tidak valid!")
+                            conn.close()
+                            st.stop()
+                    elif reg_role == "SanFK":
+                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE nama_sanfk = ?", (selected_nama_sanfk,))
+                        res_cap_sanfk = cursor.fetchone()
+                        saved_captcha_sanfk = res_cap_sanfk[0] if res_cap_sanfk else ""
+                        
+                        if saved_captcha_sanfk and reg_role_captcha_input.strip() != saved_captcha_sanfk:
+                            st.sidebar.error("Kode Verifikasi / Captcha SanFK tidak valid!")
                             conn.close()
                             st.stop()
                     
@@ -517,7 +487,6 @@ if not st.session_state.logged_in:
                     conn.commit()
                     conn.close()
                     st.sidebar.success("Pendaftaran berhasil! Silakan pindah ke tab Login.")
-                    st.session_state.otp_code = ""
                 except sqlite3.OperationalError as e:
                     conn.close()
                     st.sidebar.error(f"Terjadi kesalahan database: {e}")
@@ -527,10 +496,8 @@ if not st.session_state.logged_in:
                 
     st.stop()
 
-# Jika sudah login, tampilkan nama SanFK dan tombol Logout di sidebar
-st.sidebar.success(f"Masuk sebagai: **{st.session_state.nama_sanfk}** ({st.session_state.role})")
+st.sidebar.success(f"Masuk sebagai: **{st.session_state.nama_sanfk}** ({role})")
 if st.sidebar.button("Keluar (Logout)", use_container_width=True):
-    # HAPUS COOKIE SAAT LOGOUT
     cookie_manager.set('fk_logged_in', 'False', max_age=0)
     cookie_manager.set('fk_username', '', max_age=0)
     cookie_manager.set('fk_role', '', max_age=0)
@@ -541,29 +508,6 @@ if st.sidebar.button("Keluar (Logout)", use_container_width=True):
     st.session_state.role = ""
     st.session_state.nama_sanfk = ""
     st.rerun()
-
-st.sidebar.divider()
-
-role = st.session_state.role
-
-sanfk_aktif_terpilih = ""
-sub_mawil_aktif_terpilih = ""
-
-if role == "SanFK":
-   st.sidebar.divider()
-   sanfk_aktif_terpilih = st.session_state.nama_sanfk
-   st.sidebar.info(f"Profil SanFK Aktif: **{sanfk_aktif_terpilih}**")
-
-elif role == "Ketua Sub Mawil":
-   st.sidebar.divider()
-   conn_sub = sqlite3.connect('fk_mawil_riau.db')
-   cursor_sub = conn_sub.cursor()
-   cursor_sub.execute("SELECT sub_wilayah FROM users WHERE username = ? AND role = 'Ketua Sub Mawil'", (st.session_state.username,))
-   row_sub = cursor_sub.fetchone()
-   conn_sub.close()
-   
-   sub_mawil_aktif_terpilih = row_sub[0] if row_sub and row_sub[0] and row_sub[0] != "-" else "Pekanbaru"
-   st.sidebar.info(f"📍 Wilayah Sub Mawil: **{sub_mawil_aktif_terpilih}** (Terkunci)")
 
 st.sidebar.divider()
 
@@ -609,15 +553,14 @@ if role != "Superadmin":
 if not list_menu:
     list_menu = ["Beranda & Pengumuman"]
 
-# PENDEFINISIAN VARIABEL MENU
 menu = st.sidebar.radio("Navigasi Menu", list_menu)
 
 # --- HALAMAN KHUSUS SUPERADMIN: MANAJEMEN AKUN & ROLE ---
 if menu == "Manajemen Akun & Role" and role == "Superadmin":
     st.title("🛡️ Manajemen Akun & Role (Superadmin)")
-    st.markdown("Kelola daftar akun pengguna, hak akses role, nomor HP verifikasi SanFK, pengaturan captcha, serta backup dan import database.")
+    st.markdown("Kelola daftar akun pengguna, hak akses role, nomor HP verifikasi SanFK, pengaturan token pendaftaran, pengaturan captcha per SanFK/Role, serta backup dan import database.")
     
-    tab1, tab2, tab3, tab4 = st.tabs(["Daftar Akun", "Tambah Akun Baru", "Pengaturan Klasifikasi Captcha", "Backup & Import Database"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Daftar Akun", "Tambah Akun Baru", "Token Pendaftaran (Admin)", "Pengaturan Kode Verifikasi/Captcha", "Backup & Import Database"])
     
     with tab1:
         st.subheader("Daftar Pengguna Sistem")
@@ -691,49 +634,121 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
                     st.warning("Username dan Password wajib diisi!")
 
     with tab3:
-        st.subheader("🔑 Pengaturan Klasifikasi Kode Captcha per Role Pengurus")
-        st.markdown("Atur dan perbarui kode captcha secara terpisah untuk masing-masing role pengurus inti.")
+        st.subheader("🔑 Kelola Token Pendaftaran SanFK")
+        st.markdown("Buat dan bagikan kode token rahasia ke masing-masing anggota SanFK agar mereka dapat melakukan registrasi akun.")
         
-        st.markdown("### 📋 Daftar Kode Captcha Aktif Berdasarkan Role")
-        df_list_captcha = get_data("SELECT role_pengurus AS 'Role Pengurus', kode_captcha AS 'Kode Captcha' FROM pengaturan_captcha")
-        if not df_list_captcha.empty:
-            st.dataframe(df_list_captcha, use_container_width=True)
-        else:
-            st.info("Belum ada data kode captcha.")
+        with st.form("form_buat_token"):
+            df_anggota_t = get_data("SELECT nama FROM anggota")
+            list_sanfk_t = df_anggota_t['nama'].tolist() if not df_anggota_t.empty else []
+            pilih_sanfk_token = st.selectbox("Pilih Nama Anggota SanFK", list_sanfk_t)
             
+            default_gen_token = f"FK-{random.randint(100000, 999999)}"
+            input_token_val = st.text_input("Kode Token Pendaftaran", value=default_gen_token)
+            
+            btn_buat_token = st.form_submit_button("Simpan & Terbitkan Token")
+            if btn_buat_token:
+                if pilih_sanfk_token and input_token_val:
+                    try:
+                        execute_query("INSERT INTO token_pendaftaran (nama_sanfk, token, status_pakai) VALUES (?, ?, 'Belum')", (pilih_sanfk_token, input_token_val.strip()))
+                        st.success(f"Token untuk **{pilih_sanfk_token}** berhasil dibuat: **{input_token_val.strip()}**")
+                        st.rerun()
+                    except sqlite3.IntegrityError:
+                        st.error("Token tersebut sudah ada di database, gunakan kode yang berbeda.")
+                else:
+                    st.warning("Pilih nama dan isi token terlebih dahulu!")
+                    
         st.divider()
-        
-        list_role_pengurus = [
-            "Ketua Mawil", 
-            "Sekretaris Mawil", 
-            "Bendahara Mawil", 
-            "Admin Dokumentasi Mawil"
-        ]
-        
-        target_role = st.selectbox("Pilih Role Pengurus", list_role_pengurus, key="select_role_captcha")
-        
-        df_current_captcha = get_data("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ?", (target_role,))
-        current_val = df_current_captcha.iloc[0]['kode_captcha'] if not df_current_captcha.empty and pd.notna(df_current_captcha.iloc[0]['kode_captcha']) else ""
-        
-        new_captcha_setting = st.text_input(f"Kode Captcha Baru untuk {target_role}", value=current_val)
-        
-        if st.button("Simpan Pengaturan Captcha"):
-            if new_captcha_setting.strip():
-                execute_query("UPDATE pengaturan_captcha SET kode_captcha = ? WHERE role_pengurus = ?", (new_captcha_setting.strip(), target_role))
-                st.success(f"Kode Captcha untuk role **{target_role}** berhasil diperbarui menjadi: **{new_captcha_setting.strip()}**")
+        st.markdown("### Daftar Token Pendaftaran Aktif")
+        df_list_token = get_data("SELECT id, nama_sanfk AS 'Nama SanFK', token AS 'Kode Token', status_pakai AS 'Status Digunakan' FROM token_pendaftaran")
+        if not df_list_token.empty:
+            st.dataframe(df_list_token, use_container_width=True)
+            
+            token_id_hapus = st.selectbox("Pilih ID Token yang ingin dihapus:", df_list_token['id'].tolist())
+            if st.button("Hapus Token Terpilih"):
+                execute_query("DELETE FROM token_pendaftaran WHERE id = ?", (token_id_hapus,))
+                st.success("Token berhasil dihapus!")
                 st.rerun()
-            else:
-                st.warning("Kode Captchanya tidak boleh kosong!")
+        else:
+            st.info("Belum ada token yang diterbitkan.")
 
     with tab4:
+        st.subheader("🔑 Pengaturan Kode Verifikasi / Captcha per SanFK & Role")
+        st.markdown("Atur kode verifikasi/captcha unik untuk masing-masing anggota SanFK secara individual atau berdasarkan role pengurus.")
+        
+        df_anggota_cap = get_data("SELECT nama FROM anggota")
+        list_sanfk_cap = df_anggota_cap['nama'].tolist() if not df_anggota_cap.empty else []
+        
+        pilih_tipe_atur = st.selectbox("Kategori Pengaturan", ["Berdasarkan Nama SanFK", "Berdasarkan Role Pengurus"])
+        
+        target_sanfk = "-"
+        target_role_p = "-"
+        
+        if pilih_tipe_atur == "Berdasarkan Nama SanFK":
+            if list_sanfk_cap:
+                target_sanfk = st.selectbox("Pilih Nama SanFK", list_sanfk_cap)
+            else:
+                st.warning("Belum ada data anggota SanFK.")
+        else:
+            target_role_p = st.selectbox("Pilih Role Pengurus", [
+                "Ketua Mawil", "Sekretaris Mawil", "Bendahara Mawil", "Admin Dokumentasi Mawil"
+            ])
+            
+        col_gen1, col_gen2 = st.columns([3, 1])
+        with col_gen2:
+            st.write("") 
+            st.write("") 
+            if st.button("🎲 Generate Kode Acak", use_container_width=True):
+                if pilih_tipe_atur == "Berdasarkan Role Pengurus":
+                    st.session_state.gen_captcha_code = f"mwRIAU-{random.randint(1000, 9999)}"
+                else:
+                    st.session_state.gen_captcha_code = f"SanFK-{random.randint(1000, 9999)}"
+                st.rerun()
+
+        with st.form("form_tambah_edit_captcha"):
+            input_kode_baru = st.text_input("Masukkan Kode Verifikasi / Captcha Baru", value=st.session_state.gen_captcha_code)
+            
+            btn_simpan_cap = st.form_submit_button("Simpan Kode Verifikasi")
+            if btn_simpan_cap:
+                conn = sqlite3.connect('fk_mawil_riau.db')
+                cursor = conn.cursor()
+                if pilih_tipe_atur == "Berdasarkan Nama SanFK" and target_sanfk != "-":
+                    cursor.execute("""
+                        INSERT INTO pengaturan_captcha (role_pengurus, nama_sanfk, kode_captcha) 
+                        VALUES (?, ?, ?) 
+                        ON CONFLICT(nama_sanfk) DO UPDATE SET kode_captcha = ?
+                    """, ("SanFK", target_sanfk, input_kode_baru.strip(), input_kode_baru.strip()))
+                else:
+                    cursor.execute("""
+                        INSERT INTO pengaturan_captcha (role_pengurus, nama_sanfk, kode_captcha) 
+                        VALUES (?, ?, ?) 
+                        ON CONFLICT(nama_sanfk) DO UPDATE SET kode_captcha = ?
+                    """, (target_role_p, f"ROLE_{target_role_p}", input_kode_baru.strip(), input_kode_baru.strip()))
+                conn.commit()
+                conn.close()
+                st.success("Kode verifikasi berhasil disimpan!")
+                st.rerun()
+
+        st.divider()
+        st.markdown("### Daftar Kode Verifikasi Aktif")
+        df_list_captcha = get_data("SELECT id, role_pengurus AS 'Role / Kategori', nama_sanfk AS 'Nama SanFK', kode_captcha AS 'Kode Verifikasi' FROM pengaturan_captcha")
+        if not df_list_captcha.empty:
+            st.dataframe(df_list_captcha, use_container_width=True)
+            
+            with st.form("form_hapus_captcha"):
+                cap_id_hapus = st.selectbox("Pilih ID Baris yang ingin dihapus:", df_list_captcha['id'].tolist(), key="del_cap")
+                btn_hapus_cap = st.form_submit_button("Hapus Pengaturan Terpilih", type="primary")
+                if btn_hapus_cap:
+                    execute_query("DELETE FROM pengaturan_captcha WHERE id = ?", (cap_id_hapus,))
+                    st.success(f"Data dengan ID {cap_id_hapus} berhasil dihapus!")
+                    st.rerun()
+        else:
+            st.info("Belum ada data pengaturan verifikasi.")
+
+    with tab5:
         st.subheader("💾 Backup & Import Database")
-        st.markdown("Amankan data aplikasi dengan mengunduh file cadangan database atau pulihkan data dengan mengunggah file database.")
-        
         col_b1, col_b2 = st.columns(2)
-        
         with col_b1:
             st.markdown("### 📥 Backup Database")
-            st.write("Unduh file database SQLite saat ini sebagai cadangan.")
             if os.path.exists('fk_mawil_riau.db'):
                 with open('fk_mawil_riau.db', 'rb') as db_file:
                     db_bytes = db_file.read()
@@ -744,23 +759,15 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
                         mime="application/octet-stream",
                         use_container_width=True
                     )
-            else:
-                st.warning("File database belum ditemukan.")
-                
         with col_b2:
             st.markdown("### 📤 Import / Pulihkan Database")
-            st.write("Unggah file database (.db) cadangan untuk menggantikan data saat ini.")
             uploaded_db = st.file_uploader("Pilih file database (.db)", type=["db"])
-            
             if uploaded_db is not None:
                 if st.button("Timpa & Pulihkan Database", type="primary", use_container_width=True):
-                    try:
-                        with open("fk_mawil_riau.db", "wb") as f:
-                            f.write(uploaded_db.getbuffer())
-                        st.success("Database berhasil dipulihkan! Memuat ulang aplikasi...")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Gagal memulihkan database: {e}")
+                    with open("fk_mawil_riau.db", "wb") as f:
+                        f.write(uploaded_db.getbuffer())
+                    st.success("Database berhasil dipulihkan! Memuat ulang aplikasi...")
+                    st.rerun()
 
 df_anggota_all = get_data("SELECT * FROM anggota")
 df_keuangan_all = get_data("SELECT * FROM keuangan")
@@ -1679,607 +1686,6 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 
-# --- 5. KEUANGAN & KOTAK HIJAU ---
-if menu == "Keuangan & Kotak Hijau":
-    # Batasi akses hanya untuk SanFK dan Bendahara Mawil
-    if role not in ["SanFK", "Bendahara Mawil"]:
-        st.error("⛔ Akses Ditolak!")
-        st.warning("Menu 'Keuangan & Kotak Hijau' khusus diperuntukkan bagi role **SanFK** dan **Bendahara Mawil**. Ketua Mawil, Sekretaris Mawil, Admin Mawil, dan Ketua Sub Mawil tidak memiliki akses ke menu ini.")
-    else:
-        st.title("💰 Keuangan Terpusat, Rekening Bersama, & Bukti Transfer Mandiri")
-        
-        # --- KETENTUAN ALUR YANG SUDAH DIRAPIKAN ---
-        st.info("""
-        **Ketentuan Alur Keuangan & Kotak Hijau:**
-
-        1. **Iuran Kas SanFK & Wakaf Produktif:** Disetor oleh SanFK ke Bendahara Mawil dan Dana dikelola langsung oleh Bendahara Mawil.
-        2. **Kotak Hijau:** Penyaluran saja (disetor dari pengelola kotak hijau ke Bendahara Mawil, lalu Bendahara Mawil langsung menyetor kepada bendahara pusat).
-        3. **Dana dari Pusat (Baksos/Santunan):** Bendahara Mawil menerima dari pusat dan langsung menyalurkan kepada yang berhak.
-        4. **Baksos Lokal:** Disetor langsung oleh SanFK ke Rekening Padepokan Fatwa Kehidupan dengan kode 3 angka nomor keanggotaan (pada jumlah setoran).
-        5. **Infaq Palestina:** Disetor langsung oleh SanFK ke Rekening Padepokan Fatwa Kehidupan dengan kode unik `888` (pada jumlah setoran).
-        6. **Infaq Jabung:** Disetor langsung ke Rekening Pengurus Padepokan Fatwa Kehidupan di Jabung.
-        """)
-
-        # --- PENGATURAN TAB BERDASARKAN ROLE ---
-        if role == "Bendahara Mawil":
-            tab_f1, tab_f3, tab_f4, tab_f5, tab_f6 = st.tabs([
-                "💳 Info Rekening & Unggah",        # Index 0 (tab_f1)
-                "📁 Arsip & Koreksi Bukti",          # Index 1 (tab_f3)
-                "📊 Cashflow & Kategori",            # Index 2 (tab_f4)
-                "🏦 Pendataan Rekening",             # Index 3 (tab_f5)
-                "🛠️ Otoritas Transaksi"              # Index 4 (tab_f6)
-            ])
-            tab_f2 = None
-        elif role == "SanFK":
-            tab_f1, tab_f2, tab_f3, tab_f4 = st.tabs([
-                "💳 Info Rekening & Unggah",        # Index 0 (tab_f1)
-                "⏳ Menunggu Validasi",              # Index 1 (tab_f2)
-                "📁 Arsip & Koreksi Bukti",          # Index 2 (tab_f3)
-                "📊 Cashflow & Kategori"             # Index 3 (tab_f4)
-            ])
-            tab_f5 = None
-            tab_f6 = None
-        else:
-            tab_f1, tab_f3, tab_f4 = st.tabs([
-                "💳 Info Rekening & Unggah", 
-                "📁 Arsip & Koreksi Bukti",
-                "📊 Cashflow & Kategori"
-            ])
-            tab_f2 = None
-            tab_f5 = None
-            tab_f6 = None
-
-        # --- TAB 1: INFO REKENING & UNGGAH ---
-        with tab_f1:
-            st.subheader("💳 Informasi Nomor Rekening Tujuan Transfer")
-            df_rek = get_data("SELECT * FROM rekening_tujuan")
-            if df_rek.empty:
-                st.info("Belum ada nomor rekening tujuan yang didata oleh Bendahara Mawil.")
-            else:
-                for _, r_rek in df_rek.iterrows():
-                    st.markdown(f"""
-                    <div style="background: #E8F8F5; padding: 12px; border-radius: 8px; border: 1px solid #0E6655; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: #0E6655;">🏦 {r_rek['nama_bank']}</h4>
-                        <p style="margin: 4px 0; font-size: 16px;"><b>No. Rekening:</b> <code>{r_rek['nomor_rekening']}</code></p>
-                        <p style="margin: 2px 0;"><b>Atas Nama:</b> {r_rek['atas_nama']}</p>
-                        <p style="margin: 2px 0; font-size: 13px; color: #555;"><i>{r_rek['keterangan']}</i></p>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-            st.markdown("---")
-            st.subheader("📤 Formulir Unggah Bukti Transfer & Komentar")
-            
-            if "uploader_counter" not in st.session_state:
-                st.session_state["uploader_counter"] = 0
-
-            if "sukses_kirim_notif" in st.session_state:
-                st.success(st.session_state["sukses_kirim_notif"])
-                del st.session_state["sukses_kirim_notif"]
-
-            if role not in ["SanFK", "Bendahara Mawil"]:
-                st.warning("⚠️ Anda harus login sebagai SanFK atau Bendahara Mawil untuk mengunggah dokumen.")
-            else:
-                nama_pengirim_aktif = sanfk_aktif_terpilih if role == "SanFK" else "Bendahara Mawil"
-                if role == "SanFK":
-                    if not sanfk_aktif_terpilih:
-                        st.warning("⚠️ Silakan pilih profil SanFK Anda di sidebar terlebih dahulu.")
-                    else:
-                        st.info(f"👤 Pengirim (SanFK): **{sanfk_aktif_terpilih}**")
-                        d_sanfk_info = get_data("SELECT sub_mawil FROM anggota WHERE nama = ?", (sanfk_aktif_terpilih,))
-                        sub_mw_asal = d_sanfk_info.iloc[0]['sub_mawil'] if not d_sanfk_info.empty else "Pekanbaru"
-                else:
-                    nama_pengirim_aktif = st.text_input("Nama Petugas / Pengirim:", value="Bendahara Mawil", key="input_nama_bendahara_f1")
-                    sub_mw_asal = st.selectbox("Asal Sub Mawil / Posko:", DAFTAR_KAB_KOTA + ["Pusat"], key="select_submw_bendahara_f1")
-
-                if role != "SanFK" or sanfk_aktif_terpilih:
-                    st.markdown("📝 *Pilih metode lampiran bukti transfer:*")
-                    metode_unggah = st.radio("Metode Unggah:", ["Unggah File (JPG, PNG, PDF)", "Gunakan Kamera Langsung"], horizontal=True, key="radio_metode_sanfk_f1_live")
-                    
-                    up_bukti_file = None
-                    cam_bukti = None
-
-                    if metode_unggah == "Unggah File (JPG, PNG, PDF)":
-                        up_bukti_file = st.file_uploader("Pilih File Bukti Transfer", type=["jpg", "jpeg", "png", "pdf"], key=f"up_file_sanfk_f1_single_{st.session_state['uploader_counter']}")
-                    else:
-                        cam_bukti = st.camera_input("Potret Bukti Transfer dengan Kamera", key=f"cam_input_sanfk_f1_{st.session_state['uploader_counter']}")
-
-                    with st.form("form_unggah_bukti_mandiri", clear_on_submit=True):
-                        if role == "SanFK":
-                            kategori_cf = "Menunggu Validasi Bendahara"
-                            st.markdown("🏷️ Kategori Setoran: **Menunggu Validasi Bendahara** *(Otomatis)*")
-                            
-                            jumlah_tf = st.number_input("Nominal Transfer (Rp)", min_value=0.0, step=10000.0, key="num_nominal_sanfk_f1")
-                            jenis_arus_tf = "Masuk (Setoran)"
-                        else:
-                            kategori_cf = st.selectbox(
-                                "Pilih Kategori Transaksi:", 
-                                [
-                                    "Iuran Kas SanFK", 
-                                    "Wakaf Produktif", 
-                                    "Kotak Hijau", 
-                                    "Dana dari Pusat (Baksos/Santunan)"
-                                ],
-                                key="select_kategori_bendahara_f1_live"
-                            )
-                            jumlah_tf = st.number_input("Nominal Transaksi (Rp)", min_value=0.0, step=10000.0, key="num_nominal_bendahara_f1_live")
-                            jenis_arus_tf = st.selectbox("Jenis Arus Dana:", ["Masuk (Setoran)", "Keluar / Penyaluran"], key="select_arus_bendahara_f1_live")
-
-                        ket_tf = st.text_area("Komentar / Catatan Transfer:", key="textarea_ket_tf_f1_live")
-                        btn_kirim_dok = st.form_submit_button("Kirim Bukti Transfer & Komentar")
-                        
-                        if btn_kirim_dok:
-                            path_bukti = ""
-                            if up_bukti_file is not None:
-                                path_bukti = os.path.join(UPLOAD_DIR, f"tf_{datetime.now().strftime('%Y%m%d%H%M%S')}_{up_bukti_file.name}")
-                                with open(path_bukti, "wb") as f:
-                                    f.write(up_bukti_file.getbuffer())
-                            elif cam_bukti is not None:
-                                path_bukti = os.path.join(UPLOAD_DIR, f"tf_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                with open(path_bukti, "wb") as f:
-                                    f.write(cam_bukti.getbuffer())
-
-                            if path_bukti or ket_tf:
-                                final_bukti_str = f"{path_bukti}|Private" if path_bukti else ""
-                                execute_query(
-                                    "INSERT INTO cashflow_transaksi (kategori, pengirim, sub_mawil, tanggal, jumlah, jenis_arus, keterangan, bukti_transfer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                                    (kategori_cf, nama_pengirim_aktif, sub_mw_asal, str(date.today()), jumlah_tf, jenis_arus_tf, ket_tf, final_bukti_str)
-                                )
-                                
-                                st.session_state["uploader_counter"] += 1
-                                st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dan komentar berhasil dikirim untuk kategori **{kategori_cf}** (Nominal: **Rp {jumlah_tf:,.0f}**). Form dan uploader telah dibersihkan untuk sesi baru."
-                                st.rerun()
-                            else:
-                                st.warning("⚠️ Harap lampirkan bukti transfer atau isi komentar terlebih dahulu!")
-
-        # --- TAB 2: DAFTAR MENUNGGU VALIDASI (Hanya untuk SanFK) ---
-        if role == "SanFK" and tab_f2 is not None:
-            with tab_f2:
-                st.subheader("⏳ Status Setoran Anda yang Menunggu Validasi")
-                if not sanfk_aktif_terpilih:
-                    st.warning("⚠️ Silakan pilih profil SanFK Anda di sidebar terlebih dahulu.")
-                    df_menunggu = pd.DataFrame()
-                else:
-                    st.info(f"💡 Tab ini menampilkan status setoran atas nama **{sanfk_aktif_terpilih}** yang sedang menunggu validasi.")
-                    df_menunggu = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? AND kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC", (sanfk_aktif_terpilih,))
-                
-                if df_menunggu.empty:
-                    st.success("🎉 Tidak ada setoran yang sedang menunggu validasi saat ini.")
-                else:
-                    df_tampil_pending = df_menunggu[['id', 'tanggal', 'pengirim', 'sub_mawil', 'jumlah', 'keterangan']].copy()
-                    df_tampil_pending.columns = ['ID', 'Tanggal', 'Pengirim (SanFK)', 'Sub Mawil', 'Jumlah (Rp)', 'Komentar/Catatan']
-                    df_tampil_pending.index = range(1, len(df_tampil_pending) + 1)
-                    st.dataframe(df_tampil_pending, use_container_width=True)
-
-        # --- TAB 3: ARSIP & KOREKSI BUKTI ---
-        with tab_f3:
-            st.subheader("📁 Arsip & Koreksi Bukti Transfer")
-            st.info("🔒 Tab ini menampilkan arsip bukti transfer. Bendahara Mawil dapat mengunduh bukti yang dikirimkan SanFK, sedangkan penghapusan arsip hanya dapat dilakukan oleh pengirim (SanFK) atau pembuat data.")
-
-            if role not in ["SanFK", "Bendahara Mawil"]:
-                st.warning("⚠️ Akses dibatasi.")
-            else:
-                if role == "SanFK":
-                    if not sanfk_aktif_terpilih:
-                        st.warning("Silakan pilih profil SanFK di sidebar.")
-                        df_arsip = pd.DataFrame()
-                    else:
-                        df_arsip = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? ORDER BY id DESC", (sanfk_aktif_terpilih,))
-                else:
-                    df_arsip = get_data("SELECT * FROM cashflow_transaksi ORDER BY id DESC")
-
-                if df_arsip.empty:
-                    st.info("Belum ada arsip bukti transfer atau komentar yang tersimpan.")
-                else:
-                    for _, r_arsip in df_arsip.iterrows():
-                        with st.container():
-                            st.markdown(f"""
-                            <div style="background: #F4F6F6; padding: 14px; border-radius: 8px; border: 1px solid #BDC3C7; margin-bottom: 12px;">
-                                <p style="margin: 0; font-size: 14px; color: #7F8C8D;">📅 Tanggal: {r_arsip['tanggal']} | 👤 Pengirim: <b>{r_arsip['pengirim']}</b> ({r_arsip['sub_mawil']}) ID Transaksi: [{r_arsip['id']}]</p>
-                                <p style="margin: 4px 0;">🏷️ Kategori: <b>{r_arsip['kategori']}</b> | 💰 Nominal: <b>Rp {r_arsip['jumlah']:,.0f}</b></p>
-                                <p style="margin: 4px 0; background: #fff; padding: 8px; border-radius: 4px;">💬 <b>Komentar/Catatan:</b> {r_arsip['keterangan'] if r_arsip['keterangan'] else '-'}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                            b_str = r_arsip.get('bukti_transfer', '')
-                            b_path = b_str.split("|")[0].strip() if "|" in b_str else b_str.strip()
-                            
-                            if b_path and os.path.exists(b_path):
-                                ext_file = b_path.split('.')[-1].lower()
-                                if ext_file in ['jpg', 'jpeg', 'png']:
-                                    st.markdown(f'<img src="{get_image_base64(b_path)}" style="max-width: 250px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 8px;">', unsafe_allow_html=True)
-                                else:
-                                    st.write("📄 Dokumen PDF/File Terlampir")
-                                
-                                with open(b_path, "rb") as file_dl:
-                                    st.download_button(
-                                        label=f"📥 Download Bukti (ID: {r_arsip['id']})",
-                                        data=file_dl,
-                                        file_name=os.path.basename(b_path),
-                                        key=f"dl_arsip_{r_arsip['id']}"
-                                    )
-                            
-                            boleh_hapus = True
-                            if role == "Bendahara Mawil" and r_arsip['pengirim'] != "Bendahara Mawil":
-                                boleh_hapus = False
-
-                            if boleh_hapus:
-                                col_del1, col_del2 = st.columns([1, 4])
-                                with col_del1:
-                                    if st.button("🗑️ Hapus Data Ini", key=f"btn_hapus_arsip_{r_arsip['id']}", type="primary"):
-                                        if b_path and os.path.exists(b_path):
-                                            try:
-                                                os.remove(b_path)
-                                            except:
-                                                pass
-                                        execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (r_arsip['id'],))
-                                        st.success(f"Data transaksi ID [{r_arsip['id']}] berhasil dihapus!")
-                                        st.rerun()
-                                with col_del2:
-                                    st.caption("Jika foto/dokumen salah, klik tombol hapus di samping, lalu unggah kembali melalui Tab 1.")
-                            else:
-                                st.info("🔒 Arsip dari SanFK ini hanya dapat diunduh oleh Bendahara Mawil (penghapusan arsip wewenang SanFK pengirim).")
-
-                            st.divider()
-
-        # --- TAB 4: LAPORAN CASHFLOW & KATEGORI ---
-        with tab_f4:
-            st.subheader("📊 Laporan Cashflow Terstruktur")
-            
-            df_cf_all = get_data("SELECT * FROM cashflow_transaksi WHERE kategori != 'Menunggu Validasi Bendahara' ORDER BY tanggal ASC, id ASC")
-            
-            if df_cf_all.empty:
-                st.info("Belum ada data cashflow sah tercatat.")
-            else:
-                df_cf_all['tanggal_dt'] = pd.to_datetime(df_cf_all['tanggal'])
-                min_date = df_cf_all['tanggal_dt'].min().date()
-                max_date = df_cf_all['tanggal_dt'].max().date()
-
-                st.markdown("📅 **Filter Rentang Tanggal Laporan:**")
-                col_d1, col_d2 = st.columns(2)
-                with col_d1:
-                    tgl_mulai = st.date_input("Dari Tanggal:", value=min_date, key="filter_tgl_mulai_cf")
-                with col_d2:
-                    tgl_selesai = st.date_input("Sampai Tanggal:", value=max_date, key="filter_tgl_selesai_cf")
-
-                cat_filter = st.selectbox(
-                    "Filter Kategori:", 
-                    [
-                        "Semua Kategori", 
-                        "Iuran Kas SanFK", 
-                        "Wakaf Produktif", 
-                        "Kotak Hijau", 
-                        "Dana dari Pusat (Baksos/Santunan)"
-                    ],
-                    key="filter_kategori_cf_tab_laporan"
-                )
-
-                mask_sebelum = df_cf_all['tanggal_dt'].dt.date < tgl_mulai
-                df_sebelum = df_cf_all[mask_sebelum]
-                if cat_filter != "Semua Kategori":
-                    df_sebelum = df_sebelum[df_sebelum['kategori'] == cat_filter]
-                
-                masuk_sebelum = df_sebelum[df_sebelum['jenis_arus'] == 'Masuk (Setoran)']['jumlah'].sum()
-                keluar_sebelum = df_sebelum[df_sebelum['jenis_arus'] == 'Keluar / Penyaluran']['jumlah'].sum()
-                saldo_awal = masuk_sebelum - keluar_sebelum
-
-                mask_rentang = (df_cf_all['tanggal_dt'].dt.date >= tgl_mulai) & (df_cf_all['tanggal_dt'].dt.date <= tgl_selesai)
-                df_cf_f = df_cf_all[mask_rentang]
-                if cat_filter != "Semua Kategori":
-                    df_cf_f = df_cf_f[df_cf_f['kategori'] == cat_filter]
-
-                total_masuk = df_cf_f[df_cf_f['jenis_arus'] == 'Masuk (Setoran)']['jumlah'].sum()
-                total_keluar = df_cf_f[df_cf_f['jenis_arus'] == 'Keluar / Penyaluran']['jumlah'].sum()
-                saldo_akhir = saldo_awal + total_masuk - total_keluar
-
-                st.markdown("---")
-                
-                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                with col_m1:
-                    st.metric("Saldo Awal", f"Rp {saldo_awal:,.0f}")
-                with col_m2:
-                    st.metric("Total Masuk", f"Rp {total_masuk:,.0f}")
-                with col_m3:
-                    st.metric("Total Keluar", f"Rp {total_keluar:,.0f}")
-                with col_m4:
-                    st.metric("Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
-
-                st.markdown("---")
-                
-                # Tampilkan Tabel Data
-                df_t_show = df_cf_f[['id', 'tanggal', 'kategori', 'pengirim', 'sub_mawil', 'jumlah', 'jenis_arus', 'keterangan']].copy()
-                df_t_show.columns = ['ID', 'Tanggal', 'Kategori', 'Pengirim', 'Sub Mawil', 'Jumlah (Rp)', 'Arus', 'Keterangan']
-                st.dataframe(df_t_show, use_container_width=True, hide_index=True)
-
-                # --- FITUR EDIT & HAPUS KHUSUS BENDAHARA MAWIL PADA TAB LAPORAN ---
-                if role == "Bendahara Mawil":
-                    st.markdown("---")
-                    st.markdown("### 🛠️ Kelola Transaksi (Edit & Hapus oleh Bendahara Mawil)")
-                    
-                    if df_cf_f.empty:
-                        st.info("Tidak ada transaksi pada filter ini untuk dikelola.")
-                    else:
-                        dict_transaksi_pilihan = {
-                            f"ID [{r['id']}] - {r['tanggal']} | {r['kategori']} | Rp {r['jumlah']:,.0f} ({r['pengirim']})": r['id']
-                            for _, r in df_cf_f.iterrows()
-                        }
-                        
-                        pilih_trx_label = st.selectbox(
-                            "Pilih Transaksi yang Ingin Diedit atau Dihapus:",
-                            list(dict_transaksi_pilihan.keys()),
-                            key="select_trx_kelola_bendahara"
-                        )
-                        id_trx_pilih = dict_transaksi_pilihan[pilih_trx_label]
-                        
-                        trx_detail_row = get_data("SELECT * FROM cashflow_transaksi WHERE id = ?", (id_trx_pilih,)).iloc[0]
-
-                        with st.form(f"form_edit_hapus_trx_{id_trx_pilih}", clear_on_submit=True):
-                            st.markdown(f"**Edit Data Transaksi [ID: {id_trx_pilih}]**")
-                            
-                            kategori_opsi = [
-                                "Iuran Kas SanFK", 
-                                "Wakaf Produktif", 
-                                "Kotak Hijau", 
-                                "Dana dari Pusat (Baksos/Santunan)"
-                            ]
-                            # Pastikan kategori lama ada dalam opsi, jika tidak tambahkan di awal
-                            kat_lama = trx_detail_row['kategori']
-                            if kat_lama not in kategori_opsi:
-                                kategori_opsi.insert(0, kat_lama)
-                            idx_kat = kategori_opsi.index(kat_lama)
-
-                            e_kat = st.selectbox("Kategori Transaksi:", kategori_opsi, index=idx_kat, key=f"edit_kat_{id_trx_pilih}")
-                            e_jumlah = st.number_input("Nominal (Rp):", min_value=0.0, step=10000.0, value=float(trx_detail_row['jumlah']), key=f"edit_jumlah_{id_trx_pilih}")
-                            
-                            arus_opsi = ["Masuk (Setoran)", "Keluar / Penyaluran"]
-                            idx_arus = arus_opsi.index(trx_detail_row['jenis_arus']) if trx_detail_row['jenis_arus'] in arus_opsi else 0
-                            e_arus = st.selectbox("Jenis Arus:", arus_opsi, index=idx_arus, key=f"edit_arus_{id_trx_pilih}")
-                            
-                            e_ket = st.text_input("Keterangan / Catatan:", value=str(trx_detail_row['keterangan']), key=f"edit_ket_{id_trx_pilih}")
-
-                            col_btn1, col_btn2 = st.columns(2)
-                            with col_btn1:
-                                btn_simpan_edit = st.form_submit_button("💾 Simpan Perubahan")
-                            with col_btn2:
-                                btn_hapus_trx = st.form_submit_button("🗑️ Hapus Transaksi Ini")
-
-                            if btn_simpan_edit:
-                                execute_query(
-                                    "UPDATE cashflow_transaksi SET kategori = ?, jumlah = ?, jenis_arus = ?, keterangan = ? WHERE id = ?",
-                                    (e_kat, e_jumlah, e_arus, e_ket, id_trx_pilih)
-                                )
-                                st.success(f"✅ Transaksi ID [{id_trx_pilih}] berhasil diperbarui!")
-                                st.rerun()
-
-                            if btn_hapus_trx:
-                                # Hapus file bukti fisik jika ada
-                                b_str_del = trx_detail_row.get('bukti_transfer', '')
-                                b_path_del = b_str_del.split("|")[0].strip() if "|" in b_str_del else b_str_del.strip()
-                                if b_path_del and os.path.exists(b_path_del):
-                                    try:
-                                        os.remove(b_path_del)
-                                    except:
-                                        pass
-                                
-                                execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_trx_pilih,))
-                                st.success(f"🗑️ Transaksi ID [{id_trx_pilih}] berhasil dihapus!")
-                                st.rerun()
-
-                # --- TOMBOL DOWNLOAD EXCEL & WORD ---
-                st.markdown("---")
-                st.markdown("📥 **Unduh Laporan Keuangan:**")
-                col_dl1, col_dl2 = st.columns(2)
-
-                # 1. GENERATE EXCEL (.xlsx)
-                with col_dl1:
-                    output_excel = io.BytesIO()
-                    wb = openpyxl.Workbook()
-                    ws = wb.active
-                    ws.title = "Laporan Cashflow"
-                    
-                    ws.append(["LAPORAN CASHFLOW"])
-                    ws.append(["KEUANGAN FK MAWIL RIAU"])
-                    ws.append([f"Periode: {tgl_mulai} s.d. {tgl_selesai} | Kategori: {cat_filter}"])
-                    ws.append([])
-                    
-                    ws.append(["Saldo Awal", saldo_awal])
-                    ws.append(["Total Masuk", total_masuk])
-                    ws.append(["Total Keluar", total_keluar])
-                    ws.append(["Saldo Akhir", saldo_akhir])
-                    ws.append([])
-                    
-                    ws.append(list(df_t_show.columns))
-                    
-                    for _, row in df_t_show.iterrows():
-                        ws.append(list(row))
-                        
-                    wb.save(output_excel)
-                    output_excel.seek(0)
-                    
-                    st.download_button(
-                        label="📥 Download Laporan (Excel .xlsx)",
-                        data=output_excel,
-                        file_name=f"laporan_cashflow_{tgl_mulai}_sd_{tgl_selesai}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="btn_dl_excel_cf"
-                    )
-
-                # 2. GENERATE WORD (.docx)
-                with col_dl2:
-                    output_word = io.BytesIO()
-                    doc = Document()
-                    
-                    p_title1 = doc.add_paragraph()
-                    run_title1 = p_title1.add_run("LAPORAN CASHFLOW")
-                    run_title1.bold = True
-                    run_title1.font.size = Pt(16)
-                    run_title1.font.color.rgb = RGBColor(14, 102, 85)
-                    p_title1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-                    p_title2 = doc.add_paragraph()
-                    run_title2 = p_title2.add_run("KEUANGAN FK MAWIL RIAU")
-                    run_title2.bold = True
-                    run_title2.font.size = Pt(14)
-                    run_title2.font.color.rgb = RGBColor(14, 102, 85)
-                    p_title2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-                    p_sub = doc.add_paragraph(f"Periode: {tgl_mulai} s.d. {tgl_selesai} | Kategori: {cat_filter}")
-                    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    doc.add_paragraph()
-
-                    doc.add_heading("Ringkasan Saldo", level=2)
-                    p_sum = doc.add_paragraph()
-                    p_sum.add_run(f"• Saldo Awal : Rp {saldo_awal:,.0f}\n")
-                    p_sum.add_run(f"• Total Masuk : Rp {total_masuk:,.0f}\n")
-                    p_sum.add_run(f"• Total Keluar : Rp {total_keluar:,.0f}\n")
-                    p_sum.add_run(f"• Saldo Akhir : Rp {saldo_akhir:,.0f}\n")
-                    
-                    doc.add_heading("Detail Transaksi", level=2)
-                    
-                    if not df_t_show.empty:
-                        table = doc.add_table(rows=1, cols=len(df_t_show.columns))
-                        table.alignment = WD_TABLE_ALIGNMENT.CENTER
-                        table.style = 'Table Grid'
-                        
-                        hdr_cells = table.rows[0].cells
-                        for i, col_name in enumerate(df_t_show.columns):
-                            hdr_cells[i].text = str(col_name)
-                            for paragraph in hdr_cells[i].paragraphs:
-                                for run in paragraph.runs:
-                                    run.bold = True
-                                    
-                        for _, row in df_t_show.iterrows():
-                            row_cells = table.add_row().cells
-                            for i, val in enumerate(row):
-                                row_cells[i].text = str(val)
-                                
-                    doc.save(output_word)
-                    output_word.seek(0)
-                    
-                    st.download_button(
-                        label="📥 Download Laporan (Word .docx)",
-                        data=output_word,
-                        file_name=f"laporan_cashflow_{tgl_mulai}_sd_{tgl_selesai}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key="btn_dl_word_cf"
-                    )
-
-        # --- TAB 5 & 6 KHUSUS BENDAHARA MAWIL ---
-        if role == "Bendahara Mawil":
-            with tab_f5:
-                st.subheader("🏦 Tab Khusus Pendataan Nomor Rekening (Bendahara Mawil)")
-                with st.form("form_tambah_rekening_baru", clear_on_submit=True):
-                    st.markdown("##### ➕ Tambah Rekening Tujuan Baru")
-                    n_bank = st.text_input("Nama Bank (Cth: BSI, BCA, Mandiri)", key="add_bank_f4")
-                    n_rek = st.text_input("Nomor Rekening", key="add_norek_f4")
-                    n_an = st.text_input("Atas Nama Pemilik Rekening", key="add_an_f4")
-                    n_ket = st.text_input("Keterangan Rekening (Cth: Padepokan Fatwa Kehidupan / Jabung)", key="add_ket_f4")
-                    
-                    btn_simpan_rek = st.form_submit_button("Simpan Rekening Baru")
-                    if btn_simpan_rek and n_rek:
-                        execute_query("INSERT INTO rekening_tujuan (nama_bank, nomor_rekening, atas_nama, keterangan) VALUES (?, ?, ?, ?)", (n_bank, n_rek, n_an, n_ket))
-                        st.success("Nomor rekening berhasil ditambahkan!")
-                        st.rerun()
-
-                st.markdown("---")
-                st.markdown("##### 🛠️ Kelola, Edit, atau Hapus Nomor Rekening Terdaftar")
-                
-                df_rek_manage = get_data("SELECT * FROM rekening_tujuan")
-                if df_rek_manage.empty:
-                    st.info("Belum ada nomor rekening yang terdaftar di database.")
-                else:
-                    pilihan_rek_dict = {f"ID [{r['id']}]: {r['nama_bank']} - {r['nomor_rekening']} ({r['atas_nama']})": r['id'] for _, r in df_rek_manage.iterrows()}
-                    pilih_label_rek = st.selectbox("Pilih Nomor Rekening untuk Dikelola:", list(pilihan_rek_dict.keys()), key="select_rek_manage_box_f4")
-                    id_rek_aktif = pilihan_rek_dict[pilih_label_rek]
-
-                    df_cek_aktif = get_data("SELECT * FROM rekening_tujuan WHERE id = ?", (id_rek_aktif,))
-                    if not df_cek_aktif.empty:
-                        data_rek_pilih = df_cek_aktif.iloc[0]
-
-                        col_h1, col_h2 = st.columns([3, 1])
-                        with col_h2:
-                            if st.button("🗑️ Hapus Rekening Ini", key=f"btn_del_rek_outside_{id_rek_aktif}", type="primary"):
-                                execute_query("DELETE FROM rekening_tujuan WHERE id = ?", (id_rek_aktif,))
-                                st.success("Nomor rekening berhasil dihapus dari database!")
-                                st.rerun()
-
-                        with st.form(f"form_edit_rek_{id_rek_aktif}"):
-                            e_bank = st.text_input("Ubah Nama Bank", value=data_rek_pilih['nama_bank'], key=f"ebank_{id_rek_aktif}")
-                            e_norek = st.text_input("Ubah Nomor Rekening", value=data_rek_pilih['nomor_rekening'], key=f"enorek_{id_rek_aktif}")
-                            e_an = st.text_input("Ubah Atas Nama", value=data_rek_pilih['atas_nama'], key=f"ean_{id_rek_aktif}")
-                            e_ket = st.text_input("Ubah Keterangan", value=data_rek_pilih['keterangan'], key=f"eket_{id_rek_aktif}")
-
-                            btn_s_erek = st.form_submit_button("💾 Simpan Perubahan Rekening")
-                            if btn_s_erek:
-                                execute_query("UPDATE rekening_tujuan SET nama_bank = ?, nomor_rekening = ?, atas_nama = ?, keterangan = ? WHERE id = ?", (e_bank, e_norek, e_an, e_ket, id_rek_aktif))
-                                st.success("Data rekening berhasil diperbarui!")
-                                st.rerun()
-
-            with tab_f6:
-                st.subheader("🛠️ Otoritas & Validasi Transaksi")
-                st.info("💡 Menu ini menampilkan daftar transaksi yang memerlukan validasi atau koreksi dari Bendahara Mawil.")
-
-                df_all_tf = get_data("SELECT * FROM cashflow_transaksi WHERE kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC")
-                
-                if df_all_tf.empty:
-                    st.success("🎉 Semua transaksi sudah tervalidasi! Tidak ada data yang menunggu validasi saat ini.")
-                else:
-                    pilihan_all_dict = {
-                        f"[{r['tanggal']}] {r['pengirim']} ({r['sub_mawil']}) - Rp {r['jumlah']:,.0f} [ID: {r['id']}]": r['id']
-                        for _, r in df_all_tf.iterrows()
-                    }
-                    
-                    pilih_label_all = st.selectbox(
-                        "Pilih Transaksi untuk Divalidasi:",
-                        list(pilihan_all_dict.keys()),
-                        key="select_all_transaksi_tab6"
-                    )
-                    id_all_pilih = pilihan_all_dict[pilih_label_all]
-
-                    data_all_detail = get_data(
-                        "SELECT * FROM cashflow_transaksi WHERE id = ?", (id_all_pilih,)
-                    ).iloc[0]
-
-                    with st.form(f"form_otoritas_umum_{id_all_pilih}", clear_on_submit=True):
-                        st.markdown("##### 📝 Validasi / Koreksi Transaksi")
-                        
-                        kategori_tersedia_otoritas = [
-                            "Iuran Kas SanFK", 
-                            "Wakaf Produktif", 
-                            "Kotak Hijau", 
-                            "Dana dari Pusat (Baksos/Santunan)"
-                        ]
-
-                        e_kat_umum = st.selectbox(
-                            "Pilih Kategori Sah Transaksi:", 
-                            kategori_tersedia_otoritas, 
-                            index=0,
-                            key=f"ekat_umum_{id_all_pilih}"
-                        )
-                        
-                        st.markdown(f"**Nominal Tetap:** Rp {data_all_detail['jumlah']:,.0f}")
-                        e_arus_umum = st.selectbox("Jenis Arus Dana:", ["Masuk (Setoran)", "Keluar / Penyaluran"], index=0, key=f"earus_umum_{id_all_pilih}")
-                        e_ket_umum = st.text_input("Keterangan", value=data_all_detail['keterangan'], key=f"eket_umum_{id_all_pilih}")
-                        
-                        col_o1, col_o2 = st.columns(2)
-                        with col_o1:
-                            btn_s_oum = st.form_submit_button("💾 Validasi")
-                        with col_o2:
-                            btn_h_oum = st.form_submit_button("🗑️ Hapus Transaksi")
-
-                        if btn_s_oum:
-                            execute_query(
-                                "UPDATE cashflow_transaksi SET kategori = ?, jenis_arus = ?, keterangan = ? WHERE id = ?", 
-                                (e_kat_umum, e_arus_umum, e_ket_umum, id_all_pilih)
-                            )
-                            st.success(f"✅ Transaksi ID [{id_all_pilih}] berhasil divalidasi ke kategori **{e_kat_umum}**! Form dibersihkan.")
-                            st.rerun()
-                            
-                        if btn_h_oum:
-                            execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_all_pilih,))
-                            st.success(f"🗑️ Transaksi ID [{id_all_pilih}] berhasil dihapus! Form dibersihkan.")
-                            st.rerun()
-
-
 # --- 3. AGENDA & RUTINAN DZIKIR ---
 if menu == "Agenda & Rutinan Dzikir":
     st.title("📅 Agenda & Absensi Rutinan Dzikir Jahar")
@@ -3080,237 +2486,6 @@ elif menu == "Galeri & Feed Umum":
                                 st.success("Postingan berhasil dihapus dari sistem!")
                                 st.rerun()
 
-# --- 2. MANAJEMEN SANFK & KTA ---
-elif menu == "Manajemen SanFK & KTA":
-    st.title("👥 Manajemen Data SanFK, Ijazah Dzikir, & KTA Digital")
-    
-    # --- PENGATURAN TAB BERDASARKAN ROLE ---
-    if role == "Sekretaris Mawil":
-        tab1, tab2, tab3 = st.tabs(["Daftar SanFK", "Tambah / Perbarui Data", "KTA Digital & QR Code"])
-    else:
-        # Jika bukan Sekretaris Mawil (misal Ketua Sub Mawil), tab Tambah/Perbarui Data TIDAK dimunculkan sama sekali
-        tab1, tab3 = st.tabs(["Daftar SanFK", "KTA Digital & QR Code"])
-        tab2 = None
-    
-    with tab1:
-        # Jika role adalah Ketua Sub Mawil, kunci otomatis wilayah sesuai pilihan sidebar (sub_mawil_aktif_terpilih)
-        if role == "Ketua Sub Mawil":
-            filter_wilayah = sub_mawil_aktif_terpilih 
-            st.info(f"Menampilkan data khusus Sub Mawil: **{filter_wilayah}**")
-        else:
-            filter_wilayah = st.selectbox("Filter Berdasarkan Sub Mawil", ["Semua"] + DAFTAR_KAB_KOTA)
-            
-        if filter_wilayah != "Semua":
-            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak' FROM anggota WHERE sub_mawil = ?", (filter_wilayah,))
-        else:
-            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak' FROM anggota")
-        
-        if df_tampil.empty:
-            st.info("Belum ada data SanFK yang terdaftar di database.")
-        else:
-            df_tampil.index = range(1, len(df_tampil) + 1)
-            st.dataframe(df_tampil, use_container_width=True)
-        
-    # --- TAB 2: HANYA TAMPIL UNTUK SEKRETARIS MAWIL ---
-    if role == "Sekretaris Mawil":
-        with tab2:
-            st.subheader("Form Input, Edit, & Hapus Data SanFK")
-            
-            mode_aksi = st.radio("Pilih Mode Aksi:", ["Tambah SanFK Baru", "Edit / Hapus SanFK yang Ada"], horizontal=True)
-            
-            if mode_aksi == "Tambah SanFK Baru":
-                # Menggunakan st.form dengan clear_on_submit=True agar input otomatis kosong setelah disimpan
-                with st.form("form_tambah_sanfk_baru", clear_on_submit=True):
-                    nama = st.text_input("Nama Lengkap", key="t_nama")
-                    
-                    # Pengaturan Sub Mawil pada Form Tambah
-                    if role == "Ketua Sub Mawil":
-                        sub_mawil = sub_mawil_aktif_terpilih
-                        st.text_input("Sub Mawil (Kabupaten/Kota)", value=sub_mawil, disabled=True, key="t_sub_locked")
-                    else:
-                        sub_mawil = st.selectbox("Sub Mawil (Kabupaten/Kota)", DAFTAR_KAB_KOTA, key="t_sub")
-                        
-                    jenis_kelamin = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"], key="t_jk")
-                    alamat = st.text_area("Alamat Lengkap", key="t_alamat")
-                    status = st.selectbox("Status Keaktifan", ["Aktif", "Tidak Aktif", "Pindah", "Meninggal Dunia"], key="t_status")
-                    letnan = st.text_input("Nama Letnan / Mursyid Pemberi Ijazah Dzikir", key="t_letnan")
-                    tgl_ijazah = st.date_input("Tanggal Perolehan Ijazah Dzikir", value=datetime.today(), key="t_tgl")
-                    kontak = st.text_input("Nomor Kontak / WhatsApp", key="t_kontak")
-                    
-                    st.markdown("---")
-                    st.markdown("##### 📷 Pas Foto / Dokumen SanFK *(Hanya Format Gambar/PDF, Tanpa Video)*")
-                    metode_foto_sanfk = st.radio("Pilih Cara Input File:", ["Unggah Berkas (PDF, Foto, dll)", "Gunakan Kamera Langsung"], horizontal=True, key="radio_sanfk")
-                    
-                    foto_file = None
-                    cam_file = None
-                    if metode_foto_sanfk == "Unggah Berkas (PDF, Foto, dll)":
-                        foto_file = st.file_uploader("Unggah File Pas Foto / Dokumen SanFK (PDF, JPG, PNG)", type=["pdf", "jpg", "jpeg", "png"], key="up_sanfk")
-                    else:
-                        cam_file = st.camera_input("Ambil Pas Foto Langsung dengan Kamera", key="cam_sanfk")
-                    
-                    st.markdown("🔒 Hak Akses File Berkas: **Private (Otomatis)**")
-                    akses_sanfk = "Private"
-                    
-                    submit_simpan = st.form_submit_button("Simpan SanFK Baru")
-                    
-                    if submit_simpan:
-                        if nama:
-                            foto_path = ""
-                            if foto_file is not None:
-                                foto_path = os.path.join(UPLOAD_DIR, foto_file.name)
-                                with open(foto_path, "wb") as f:
-                                    f.write(foto_file.getbuffer())
-                            elif cam_file is not None:
-                                foto_path = os.path.join(UPLOAD_DIR, f"cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                with open(foto_path, "wb") as f:
-                                    f.write(cam_file.getbuffer())
-                            
-                            final_foto_val = f"{foto_path}|{akses_sanfk}" if foto_path else ""
-                            execute_query(
-                                "INSERT INTO anggota (nama, sub_mawil, jenis_kelamin, alamat, status, letnan_ijazah, tanggal_ijazah, kontak, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                (nama, sub_mawil, jenis_kelamin, alamat, status, letnan, str(tgl_ijazah), kontak, final_foto_val)
-                            )
-                            st.success(f"Data SanFK {nama} berhasil ditambahkan!")
-                            st.rerun()
-                        else:
-                            st.warning("Nama lengkap wajib diisi!")
-            else:
-                df_list_agt = get_data("SELECT id, nama, sub_mawil FROM anggota")
-                if df_list_agt.empty:
-                    st.info("Belum ada data SanFK untuk diedit atau dihapus.")
-                else:
-                    pilihan_agt = {f"{row['nama']} ({row['sub_mawil']})": row['id'] for _, row in df_list_agt.iterrows()}
-                    pilih_label = st.selectbox("Pilih SanFK yang Ingin Diedit / Dihapus:", list(pilihan_agt.keys()))
-                    id_terpilih = pilihan_agt[pilih_label]
-                    
-                    data_terpilih = get_data("SELECT * FROM anggota WHERE id = ?", (id_terpilih,)).iloc[0]
-                    
-                    file_foto_lama_full = data_terpilih.get('foto', '')
-                    if "|" in file_foto_lama_full:
-                        file_foto_lama, akses_lama_sanfk = file_foto_lama_full.split("|", 1)
-                    else:
-                        file_foto_lama, akses_lama_sanfk = file_foto_lama_full, "Public"
-
-                    nama_e = st.text_input("Nama Lengkap", value=data_terpilih['nama'], key=f"e_nama_{id_terpilih}")
-                    
-                    # Pengaturan Sub Mawil pada Form Edit
-                    if role == "Ketua Sub Mawil":
-                        sub_mawil_e = sub_mawil_aktif_terpilih
-                        st.text_input("Sub Mawil (Kabupaten/Kota)", value=sub_mawil_e, disabled=True, key=f"e_sub_locked_{id_terpilih}")
-                    else:
-                        sub_mawil_e = st.selectbox("Sub Mawil (Kabupaten/Kota)", DAFTAR_KAB_KOTA, index=DAFTAR_KAB_KOTA.index(data_terpilih['sub_mawil']) if data_terpilih['sub_mawil'] in DAFTAR_KAB_KOTA else 0, key=f"e_sub_{id_terpilih}")
-                    
-                    jk_list = ["Laki-laki", "Perempuan"]
-                    jk_idx = jk_list.index(data_terpilih['jenis_kelamin']) if data_terpilih['jenis_kelamin'] in jk_list else 0
-                    jenis_kelamin_e = st.selectbox("Jenis Kelamin", jk_list, index=jk_idx, key=f"e_jk_{id_terpilih}")
-                    
-                    alamat_e = st.text_area("Alamat Lengkap", value=data_terpilih['alamat'] if data_terpilih['alamat'] else "", key=f"e_al_{id_terpilih}")
-                    
-                    status_list = ["Aktif", "Tidak Aktif", "Pindah", "Meninggal Dunia"]
-                    status_idx = status_list.index(data_terpilih['status']) if data_terpilih['status'] in status_list else 0
-                    status_e = st.selectbox("Status Keaktifan", status_list, index=status_idx, key=f"e_st_{id_terpilih}")
-                    
-                    letnan_e = st.text_input("Nama Letnan / Mursyid Pemberi Ijazah Dzikir", value=data_terpilih['letnan_ijazah'] if data_terpilih['letnan_ijazah'] else "", key=f"e_let_{id_terpilih}")
-                    
-                    try:
-                        tgl_parsed = datetime.strptime(data_terpilih['tanggal_ijazah'], "%Y-%m-%d").date()
-                    except:
-                        tgl_parsed = datetime.today().date()
-                    tgl_ijazah_e = st.date_input("Tanggal Perolehan Ijazah Dzikir", value=tgl_parsed, key=f"e_tgl_{id_terpilih}")
-                    
-                    kontak_e = st.text_input("Nomor Kontak / WhatsApp", value=data_terpilih['kontak'] if data_terpilih['kontak'] else "", key=f"e_kon_{id_terpilih}")
-                    
-                    st.markdown("🔒 Hak Akses Berkas: **Private (Otomatis)**")
-                    edit_akses_sanfk = "Private"
-                    
-                    st.markdown("---")
-                    st.markdown("##### 📷 Ganti File / Pas Foto *(Tanpa Video)*")
-                    metode_ganti_sanfk = st.radio("Pilih Cara Ganti File:", ["Unggah Berkas (PDF, Foto, dll)", "Gunakan Kamera Langsung"], horizontal=True, key=f"radio_ganti_{id_terpilih}")
-                    
-                    foto_file_e = None
-                    cam_file_e = None
-                    if metode_ganti_sanfk == "Unggah Berkas (PDF, Foto, dll)":
-                        foto_file_e = st.file_uploader("Ganti / Upload File Baru (PDF, JPG, PNG)", type=["pdf", "jpg", "jpeg", "png"], key=f"up_e_{id_terpilih}")
-                    else:
-                        cam_file_e = st.camera_input("Ambil Pas Foto Baru via Kamera", key=f"cam_e_{id_terpilih}")
-                    
-                    col_eb1, col_eb2 = st.columns(2)
-                    with col_eb1:
-                        if st.button("💾 Simpan Perubahan Data", key=f"btn_up_data_{id_terpilih}"):
-                            foto_path_e = file_foto_lama
-                            if foto_file_e is not None:
-                                foto_path_e = os.path.join(UPLOAD_DIR, foto_file_e.name)
-                                with open(foto_path_e, "wb") as f:
-                                    f.write(foto_file_e.getbuffer())
-                            elif cam_file_e is not None:
-                                foto_path_e = os.path.join(UPLOAD_DIR, f"cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                with open(foto_path_e, "wb") as f:
-                                    f.write(cam_file_e.getbuffer())
-                            
-                            final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}" if foto_path_e else ""
-                            execute_query(
-                                "UPDATE anggota SET nama = ?, sub_mawil = ?, jenis_kelamin = ?, alamat = ?, status = ?, letnan_ijazah = ?, tanggal_ijazah = ?, kontak = ?, foto = ? WHERE id = ?",
-                                (nama_e, sub_mawil_e, jenis_kelamin_e, alamat_e, status_e, letnan_e, str(tgl_ijazah_e), kontak_e, final_foto_e_val, id_terpilih)
-                            )
-                            st.success(f"Data SanFK {nama_e} berhasil diperbarui!")
-                            st.rerun()
-                    with col_eb2:
-                        if st.button("🗑️ Hapus SanFK Ini", key=f"btn_del_agt_{id_terpilih}"):
-                            execute_query("DELETE FROM anggota WHERE id = ?", (id_terpilih,))
-                            st.success(f"Data SanFK berhasil dihapus dari database!")
-                            st.rerun()
-
-    with tab3:
-        st.subheader("💳 Kartu Tanda SanFK (KTA) Digital")
-        df_anggota_kta = get_data("SELECT * FROM anggota")
-        if df_anggota_kta.empty:
-            st.info("Belum ada data SanFK.")
-        else:
-            pilih_anggota = st.selectbox("Pilih SanFK untuk Cetak KTA", df_anggota_kta["nama"].tolist())
-            data_a = df_anggota_kta[df_anggota_kta["nama"] == pilih_anggota].iloc[0]
-            
-            foto_full = data_a.get('foto', '')
-            if "|" in foto_full:
-                foto_path, akses_kta = foto_full.split("|", 1)
-            else:
-                foto_path, akses_kta = foto_full, "Public"
-                
-            base64_img = get_image_base64(foto_path) if foto_path else None
-            
-            if base64_img:
-                img_html = f'<img src="{base64_img}" style="width: 85px; height: 105px; object-fit: cover; border-radius: 4px; border: 1px solid #0E6655;">'
-            else:
-                img_html = '<div style="font-size: 10px; color: #555; padding: 25px 0; text-align: center;">Private / No File</div>'
-            
-            st.markdown(f"""
-            <div style="border: 2px solid #0E6655; border-radius: 10px; padding: 20px; background-color: #E8F8F5; color: #0e3d30; max-width: 500px;">
-                <h3 style="margin: 0; text-align: center;">FK MAWIL RIAU</h3>
-                <p style="text-align: center; font-size: 12px; margin-bottom: 15px;">Forum Silaturrahmi Majelis Dzikir Fatwa Kehidupan Mawil Riau</p>
-                <hr style="border-color: #0E6655;">
-                <table style="width: 100%; color: #0e3d30; border: none;">
-                    <tr>
-                        <td style="width: 35%; vertical-align: top; text-align: center; padding-right: 10px;">
-                            <div style="width: 90px; height: 110px; border: 1px dashed #0E6655; display: flex; align-items: center; justify-content: center; background: white; margin: auto; padding: 2px;">
-                                {img_html}
-                            </div>
-                        </td>
-                        <td style="width: 65%; vertical-align: top;">
-                            <p style="margin: 4px 0;"><b>Nama:</b> {data_a['nama']}</p>
-                            <p style="margin: 4px 0;"><b>Sub Mawil:</b> {data_a['sub_mawil']}</p>
-                            <p style="margin: 4px 0;"><b>Gender:</b> {data_a.get('jenis_kelamin', '-')}</p>
-                            <p style="margin: 4px 0;"><b>Status:</b> {data_a['status']}</p>
-                            <p style="margin: 4px 0;"><b>No. HP:</b> {data_a.get('kontak', '-')}</p>
-                            <p style="margin: 4px 0;"><b>Ijazah Dzikir:</b><br>{data_a['letnan_ijazah']}</p>
-                        </td>
-                    </tr>
-                </table>
-                <p style="margin: 8px 0 0 0; font-size: 11px;"><b>Alamat:</b> {data_a.get('alamat', '-')}</p>
-                <div style="text-align: center; margin-top: 15px; background: white; padding: 8px; border-radius: 5px;">
-                    <p style="font-size: 10px; margin: 0;">[ QR CODE PRESENSI DIGITAL ]</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
 # --- 6. LAYANAN SANTUNAN & KONTAK ---
 elif menu == "Layanan Santunan & Kontak":
     st.title("🤝 Layanan Santunan Sosial & Kontak Darurat")
@@ -3391,3 +2566,840 @@ elif menu == "Layanan Santunan & Kontak":
         </ul>
     </div>
     """, unsafe_allow_html=True)
+
+# --- 2. MANAJEMEN SANFK & KTA ---
+elif menu == "Manajemen SanFK & KTA":
+    st.title("👥 Manajemen Data SanFK, Ijazah Dzikir, & KTA Digital")
+    
+    # --- PENGATURAN TAB BERDASARKAN ROLE ---
+    if role == "Sekretaris Mawil":
+        tab1, tab2, tab3 = st.tabs(["Daftar SanFK", "Tambah / Perbarui Data", "KTA Digital & QR Code"])
+    else:
+        tab1, tab3 = st.tabs(["Daftar SanFK", "KTA Digital & QR Code"])
+        tab2 = None
+    
+    with tab1:
+        if role == "Ketua Sub Mawil":
+            filter_wilayah = sub_mawil_aktif_terpilih 
+            st.info(f"Menampilkan data khusus Sub Mawil: **{filter_wilayah}**")
+        else:
+            filter_wilayah = st.selectbox("Filter Berdasarkan Sub Mawil", ["Semua"] + DAFTAR_KAB_KOTA)
+            
+        if filter_wilayah != "Semua":
+            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak' FROM anggota WHERE sub_mawil = ?", (filter_wilayah,))
+        else:
+            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak' FROM anggota")
+        
+        if df_tampil.empty:
+            st.info("Belum ada data SanFK yang terdaftar di database.")
+        else:
+            df_tampil.index = range(1, len(df_tampil) + 1)
+            st.dataframe(df_tampil, use_container_width=True)
+        
+    # --- TAB 2: HANYA TAMPIL UNTUK SEKRETARIS MAWIL ---
+    if role == "Sekretaris Mawil":
+        with tab2:
+            st.subheader("Form Input, Edit, & Hapus Data SanFK")
+            
+            mode_aksi = st.radio("Pilih Mode Aksi:", ["Tambah SanFK Baru", "Edit / Hapus SanFK yang Ada"], horizontal=True)
+            
+            if mode_aksi == "Tambah SanFK Baru":
+                nama = st.text_input("Nama Lengkap", key="t_nama")
+                
+                if role == "Ketua Sub Mawil":
+                    sub_mawil = sub_mawil_aktif_terpilih
+                    st.text_input("Sub Mawil (Kabupaten/Kota)", value=sub_mawil, disabled=True, key="t_sub_locked")
+                else:
+                    sub_mawil = st.selectbox("Sub Mawil (Kabupaten/Kota)", DAFTAR_KAB_KOTA, key="t_sub")
+                    
+                jenis_kelamin = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"], key="t_jk")
+                alamat = st.text_area("Alamat Lengkap", key="t_alamat")
+                status = st.selectbox("Status Keaktifan", ["Aktif", "Tidak Aktif", "Pindah", "Meninggal Dunia"], key="t_status")
+                letnan = st.text_input("Nama Letnan / Mursyid Pemberi Ijazah Dzikir", key="t_letnan")
+                tgl_ijazah = st.date_input("Tanggal Perolehan Ijazah Dzikir", value=datetime.today(), key="t_tgl")
+                kontak = st.text_input("Nomor Kontak / WhatsApp", key="t_kontak")
+                
+                st.markdown("---")
+                st.markdown("##### 📷 Pas Foto / Dokumen SanFK *(Hanya Format Gambar/PDF, Tanpa Video)*")
+                
+                # Pilihan 2 Metode Input File
+                metode_foto_sanfk = st.radio("Pilih Cara Input File:", ["Unggah Berkas (PDF, Foto, dll)", "Gunakan Kamera Langsung"], horizontal=True, key="radio_sanfk")
+                
+                foto_file = None
+                cam_file = None
+                
+                if metode_foto_sanfk == "Unggah Berkas (PDF, Foto, dll)":
+                    foto_file = st.file_uploader("Unggah File Pas Foto / Dokumen SanFK (PDF, JPG, PNG)", type=["pdf", "jpg", "jpeg", "png"], key="up_sanfk")
+                else:
+                    cam_file = st.camera_input("Ambil Pas Foto Langsung dengan Kamera", key="cam_sanfk")
+                
+                st.markdown("🔒 Hak Akses File Berkas: **Private (Otomatis)**")
+                akses_sanfk = "Private"
+                
+                if st.button("Simpan SanFK Baru", key="btn_simpan_sanfk_baru"):
+                    if nama:
+                        final_foto_val = ""
+                        
+                        # Cek jika user menggunakan metode Unggah Berkas
+                        if metode_foto_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file is not None:
+                            foto_path = os.path.join(UPLOAD_DIR, foto_file.name)
+                            with open(foto_path, "wb") as f:
+                                f.write(foto_file.getbuffer())
+                            final_foto_val = f"{foto_path}|{akses_sanfk}"
+                            
+                        # Cek jika user menggunakan metode Kamera Langsung
+                        elif metode_foto_sanfk == "Gunakan Kamera Langsung" and cam_file is not None:
+                            nama_file_unik = f"cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+                            foto_path_cam = os.path.join(UPLOAD_DIR, nama_file_unik)
+                            with open(foto_path_cam, "wb") as f:
+                                f.write(cam_file.getbuffer())
+                            final_foto_val = f"{foto_path_cam}|{akses_sanfk}"
+                        
+                        execute_query(
+                            "INSERT INTO anggota (nama, sub_mawil, jenis_kelamin, alamat, status, letnan_ijazah, tanggal_ijazah, kontak, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (nama, sub_mawil, jenis_kelamin, alamat, status, letnan, str(tgl_ijazah), kontak, final_foto_val)
+                        )
+                        
+                        st.success(f"Data SanFK {nama} berhasil ditambahkan!")
+                        st.rerun()
+                    else:
+                        st.warning("Nama lengkap wajib diisi!")
+            else:
+                df_list_agt = get_data("SELECT id, nama, sub_mawil FROM anggota")
+                if df_list_agt.empty:
+                    st.info("Belum ada data SanFK untuk diedit atau dihapus.")
+                else:
+                    pilihan_agt = {f"{row['nama']} ({row['sub_mawil']})": row['id'] for _, row in df_list_agt.iterrows()}
+                    pilih_label = st.selectbox("Pilih SanFK yang Ingin Diedit / Dihapus:", list(pilihan_agt.keys()))
+                    id_terpilih = pilihan_agt[pilih_label]
+                    
+                    data_terpilih = get_data("SELECT * FROM anggota WHERE id = ?", (id_terpilih,)).iloc[0]
+                    
+                    file_foto_lama_full = data_terpilih.get('foto', '')
+                    if "|" in file_foto_lama_full:
+                        file_foto_lama, akses_lama_sanfk = file_foto_lama_full.split("|", 1)
+                    else:
+                        file_foto_lama, akses_lama_sanfk = file_foto_lama_full, "Public"
+
+                    nama_e = st.text_input("Nama Lengkap", value=data_terpilih['nama'], key=f"e_nama_{id_terpilih}")
+                    
+                    if role == "Ketua Sub Mawil":
+                        sub_mawil_e = sub_mawil_aktif_terpilih
+                        st.text_input("Sub Mawil (Kabupaten/Kota)", value=sub_mawil_e, disabled=True, key=f"e_sub_locked_{id_terpilih}")
+                    else:
+                        sub_mawil_e = st.selectbox("Sub Mawil (Kabupaten/Kota)", DAFTAR_KAB_KOTA, index=DAFTAR_KAB_KOTA.index(data_terpilih['sub_mawil']) if data_terpilih['sub_mawil'] in DAFTAR_KAB_KOTA else 0, key=f"e_sub_{id_terpilih}")
+                    
+                    jk_list = ["Laki-laki", "Perempuan"]
+                    jk_idx = jk_list.index(data_terpilih['jenis_kelamin']) if data_terpilih['jenis_kelamin'] in jk_list else 0
+                    jenis_kelamin_e = st.selectbox("Jenis Kelamin", jk_list, index=jk_idx, key=f"e_jk_{id_terpilih}")
+                    
+                    alamat_e = st.text_area("Alamat Lengkap", value=data_terpilih['alamat'] if data_terpilih['alamat'] else "", key=f"e_al_{id_terpilih}")
+                    
+                    status_list = ["Aktif", "Tidak Aktif", "Pindah", "Meninggal Dunia"]
+                    status_idx = status_list.index(data_terpilih['status']) if data_terpilih['status'] in status_list else 0
+                    status_e = st.selectbox("Status Keaktifan", status_list, index=status_idx, key=f"e_st_{id_terpilih}")
+                    
+                    letnan_e = st.text_input("Nama Letnan / Mursyid Pemberi Ijazah Dzikir", value=data_terpilih['letnan_ijazah'] if data_terpilih['letnan_ijazah'] else "", key=f"e_let_{id_terpilih}")
+                    
+                    try:
+                        tgl_parsed = datetime.strptime(data_terpilih['tanggal_ijazah'], "%Y-%m-%d").date()
+                    except:
+                        tgl_parsed = datetime.today().date()
+                    tgl_ijazah_e = st.date_input("Tanggal Perolehan Ijazah Dzikir", value=tgl_parsed, key=f"e_tgl_{id_terpilih}")
+                    
+                    kontak_e = st.text_input("Nomor Kontak / WhatsApp", value=data_terpilih['kontak'] if data_terpilih['kontak'] else "", key=f"e_kon_{id_terpilih}")
+                    
+                    st.markdown("🔒 Hak Akses Berkas: **Private (Otomatis)**")
+                    edit_akses_sanfk = "Private"
+                    
+                    st.markdown("---")
+                    st.markdown("##### 📷 Ganti File / Pas Foto *(Tanpa Video)*")
+                    metode_ganti_sanfk = st.radio("Pilih Cara Ganti File:", ["Unggah Berkas (PDF, Foto, dll)", "Gunakan Kamera Langsung"], horizontal=True, key=f"radio_ganti_{id_terpilih}")
+                    
+                    foto_file_e = None
+                    cam_file_e = None
+                    
+                    if metode_ganti_sanfk == "Unggah Berkas (PDF, Foto, dll)":
+                        foto_file_e = st.file_uploader("Ganti / Upload File Baru (PDF, JPG, PNG)", type=["pdf", "jpg", "jpeg", "png"], key=f"up_e_{id_terpilih}")
+                    else:
+                        cam_file_e = st.camera_input("Ambil Pas Foto Baru via Kamera", key=f"cam_e_{id_terpilih}")
+                    
+                    col_eb1, col_eb2 = st.columns(2)
+                    with col_eb1:
+                        if st.button("💾 Simpan Perubahan Data", key=f"btn_up_data_{id_terpilih}"):
+                            foto_path_e = file_foto_lama
+                            
+                            if metode_ganti_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file_e is not None:
+                                foto_path_e = os.path.join(UPLOAD_DIR, foto_file_e.name)
+                                with open(foto_path_e, "wb") as f:
+                                    f.write(foto_file_e.getbuffer())
+                                final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
+                            elif metode_ganti_sanfk == "Gunakan Kamera Langsung" and cam_file_e is not None:
+                                nama_file_unik_e = f"cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+                                foto_path_cam_e = os.path.join(UPLOAD_DIR, nama_file_unik_e)
+                                with open(foto_path_cam_e, "wb") as f:
+                                    f.write(cam_file_e.getbuffer())
+                                final_foto_e_val = f"{foto_path_cam_e}|{edit_akses_sanfk}"
+                            else:
+                                final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
+                            
+                            execute_query(
+                                "UPDATE anggota SET nama = ?, sub_mawil = ?, jenis_kelamin = ?, alamat = ?, status = ?, letnan_ijazah = ?, tanggal_ijazah = ?, kontak = ?, foto = ? WHERE id = ?",
+                                (nama_e, sub_mawil_e, jenis_kelamin_e, alamat_e, status_e, letnan_e, str(tgl_ijazah_e), kontak_e, final_foto_e_val, id_terpilih)
+                            )
+                            
+                            st.success(f"Data SanFK {nama_e} berhasil diperbarui!")
+                            st.rerun()
+                    with col_eb2:
+                        if st.button("🗑️ Hapus SanFK Ini", key=f"btn_del_agt_{id_terpilih}"):
+                            execute_query("DELETE FROM anggota WHERE id = ?", (id_terpilih,))
+                            st.success(f"Data SanFK berhasil dihapus dari database!")
+                            st.rerun()
+
+    with tab3:
+        st.subheader("💳 Kartu Tanda SanFK (KTA) Digital")
+        df_anggota_kta = get_data("SELECT * FROM anggota")
+        if df_anggota_kta.empty:
+            st.info("Belum ada data SanFK.")
+        else:
+            pilih_anggota = st.selectbox("Pilih SanFK untuk Cetak KTA", df_anggota_kta["nama"].tolist())
+            data_a = df_anggota_kta[df_anggota_kta["nama"] == pilih_anggota].iloc[0]
+            
+            foto_full = data_a.get('foto', '')
+            if "|" in foto_full:
+                foto_path, akses_kta = foto_full.split("|", 1)
+            else:
+                foto_path, akses_kta = foto_full, "Public"
+                
+            base64_img = get_image_base64(foto_path) if foto_path else None
+            
+            if base64_img:
+                img_html = f'<img src="{base64_img}" style="width: 85px; height: 105px; object-fit: cover; border-radius: 4px; border: 1px solid #0E6655;">'
+            else:
+                img_html = '<div style="font-size: 10px; color: #555; padding: 25px 0; text-align: center;">Private / No File</div>'
+            
+            st.markdown(f"""
+            <div style="border: 2px solid #0E6655; border-radius: 10px; padding: 20px; background-color: #E8F8F5; color: #0e3d30; max-width: 500px;">
+                <h3 style="margin: 0; text-align: center;">FK MAWIL RIAU</h3>
+                <p style="text-align: center; font-size: 12px; margin-bottom: 15px;">Forum Silaturrahmi Majelis Dzikir Fatwa Kehidupan Mawil Riau</p>
+                <hr style="border-color: #0E6655;">
+                <table style="width: 100%; color: #0e3d30; border: none;">
+                    <tr>
+                        <td style="width: 35%; vertical-align: top; text-align: center; padding-right: 10px;">
+                            <div style="width: 90px; height: 110px; border: 1px dashed #0E6655; display: flex; align-items: center; justify-content: center; background: white; margin: auto; padding: 2px;">
+                                {img_html}
+                            </div>
+                        </td>
+                        <td style="width: 65%; vertical-align: top;">
+                            <p style="margin: 4px 0;"><b>Nama:</b> {data_a['nama']}</p>
+                            <p style="margin: 4px 0;"><b>Sub Mawil:</b> {data_a['sub_mawil']}</p>
+                            <p style="margin: 4px 0;"><b>Gender:</b> {data_a.get('jenis_kelamin', '-')}</p>
+                            <p style="margin: 4px 0;"><b>Status:</b> {data_a['status']}</p>
+                            <p style="margin: 4px 0;"><b>No. HP:</b> {data_a.get('kontak', '-')}</p>
+                            <p style="margin: 4px 0;"><b>Ijazah Dzikir:</b><br>{data_a['letnan_ijazah']}</p>
+                        </td>
+                    </tr>
+                </table>
+                <p style="margin: 8px 0 0 0; font-size: 11px;"><b>Alamat:</b> {data_a.get('alamat', '-')}</p>
+                <div style="text-align: center; margin-top: 15px; background: white; padding: 8px; border-radius: 5px;">
+                    <p style="font-size: 10px; margin: 0;">[ QR CODE PRESENSI DIGITAL ]</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+# --- 5. KEUANGAN & KOTAK HIJAU ---
+if menu == "Keuangan & Kotak Hijau":
+    # Batasi akses hanya untuk SanFK dan Bendahara Mawil
+    if role not in ["SanFK", "Bendahara Mawil"]:
+        st.error("⛔ Akses Ditolak!")
+        st.warning("Menu 'Keuangan & Kotak Hijau' khusus diperuntukkan bagi role **SanFK** dan **Bendahara Mawil**. Ketua Mawil, Sekretaris Mawil, Admin Mawil, dan Ketua Sub Mawil tidak memiliki akses ke menu ini.")
+    else:
+        st.title("💰 Keuangan Terpusat, Rekening Bersama, & Bukti Transfer Mandiri")
+        
+        # --- KETENTUAN ALUR YANG SUDAH DIRAPIKAN ---
+        st.info("""
+        **Ketentuan Alur Keuangan & Kotak Hijau:**
+
+        1. **Iuran Kas SanFK & Wakaf Produktif:** Disetor oleh SanFK ke Bendahara Mawil dan Dana dikelola langsung oleh Bendahara Mawil.
+        2. **Kotak Hijau:** Penyaluran saja (disetor dari pengelola kotak hijau ke Bendahara Mawil, lalu Bendahara Mawil langsung menyetor kepada bendahara pusat).
+        3. **Dana dari Pusat (Baksos/Santunan):** Bendahara Mawil menerima dari pusat dan langsung menyalurkan kepada yang berhak.
+        4. **Baksos Lokal:** Disetor langsung oleh SanFK ke Rekening Padepokan Fatwa Kehidupan dengan kode 3 angka nomor keanggotaan (pada jumlah setoran).
+        5. **Infaq Palestina:** Disetor langsung oleh SanFK ke Rekening Padepokan Fatwa Kehidupan dengan kode unik `888` (pada jumlah setoran).
+        6. **Infaq Jabung:** Disetor langsung ke Rekening Pengurus Padepokan Fatwa Kehidupan di Jabung.
+        """)
+
+        # --- PENGATURAN TAB BERDASARKAN ROLE ---
+        if role == "Bendahara Mawil":
+            tab_f1, tab_f3, tab_f4, tab_f5, tab_f6 = st.tabs([
+                "💳 Info Rekening & Unggah",        # Index 0 (tab_f1)
+                "📁 Arsip & Koreksi Bukti",          # Index 1 (tab_f3)
+                "📊 Cashflow & Kategori",            # Index 2 (tab_f4)
+                "🏦 Pendataan Rekening",             # Index 3 (tab_f5)
+                "🛠️ Otoritas Transaksi"              # Index 4 (tab_f6)
+            ])
+            tab_f2 = None
+        elif role == "SanFK":
+            tab_f1, tab_f2, tab_f3, tab_f4 = st.tabs([
+                "💳 Info Rekening & Unggah",        # Index 0 (tab_f1)
+                "⏳ Menunggu Validasi",              # Index 1 (tab_f2)
+                "📁 Arsip & Koreksi Bukti",          # Index 2 (tab_f3)
+                "📊 Cashflow & Kategori"             # Index 3 (tab_f4)
+            ])
+            tab_f5 = None
+            tab_f6 = None
+        else:
+            tab_f1, tab_f3, tab_f4 = st.tabs([
+                "💳 Info Rekening & Unggah", 
+                "📁 Arsip & Koreksi Bukti",
+                "📊 Cashflow & Kategori"
+            ])
+            tab_f2 = None
+            tab_f5 = None
+            tab_f6 = None
+
+        # --- TAB 1: INFO REKENING & UNGGAH ---
+        with tab_f1:
+            st.subheader("💳 Informasi Nomor Rekening Tujuan Transfer")
+            df_rek = get_data("SELECT * FROM rekening_tujuan")
+            if df_rek.empty:
+                st.info("Belum ada nomor rekening tujuan yang didata oleh Bendahara Mawil.")
+            else:
+                for _, r_rek in df_rek.iterrows():
+                    st.markdown(f"""
+                    <div style="background: #E8F8F5; padding: 12px; border-radius: 8px; border: 1px solid #0E6655; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #0E6655;">🏦 {r_rek['nama_bank']}</h4>
+                        <p style="margin: 4px 0; font-size: 16px;"><b>No. Rekening:</b> <code>{r_rek['nomor_rekening']}</code></p>
+                        <p style="margin: 2px 0;"><b>Atas Nama:</b> {r_rek['atas_nama']}</p>
+                        <p style="margin: 2px 0; font-size: 13px; color: #555;"><i>{r_rek['keterangan']}</i></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.subheader("📤 Formulir Unggah Bukti Transfer & Komentar")
+            
+            if "uploader_counter" not in st.session_state:
+                st.session_state["uploader_counter"] = 0
+
+            if "sukses_kirim_notif" in st.session_state:
+                st.success(st.session_state["sukses_kirim_notif"])
+                del st.session_state["sukses_kirim_notif"]
+
+            if role not in ["SanFK", "Bendahara Mawil"]:
+                st.warning("⚠️ Anda harus login sebagai SanFK atau Bendahara Mawil untuk mengunggah dokumen.")
+            else:
+                nama_pengirim_aktif = sanfk_aktif_terpilih if role == "SanFK" else "Bendahara Mawil"
+                if role == "SanFK":
+                    if not sanfk_aktif_terpilih:
+                        st.warning("⚠️ Silakan pilih profil SanFK Anda di sidebar terlebih dahulu.")
+                    else:
+                        st.info(f"👤 Pengirim (SanFK): **{sanfk_aktif_terpilih}**")
+                        d_sanfk_info = get_data("SELECT sub_mawil FROM anggota WHERE nama = ?", (sanfk_aktif_terpilih,))
+                        sub_mw_asal = d_sanfk_info.iloc[0]['sub_mawil'] if not d_sanfk_info.empty else "Pekanbaru"
+                else:
+                    nama_pengirim_aktif = st.text_input("Nama Petugas / Pengirim:", value="Bendahara Mawil", key="input_nama_bendahara_f1")
+                    sub_mw_asal = st.selectbox("Asal Sub Mawil / Posko:", DAFTAR_KAB_KOTA + ["Pusat"], key="select_submw_bendahara_f1")
+
+                if role != "SanFK" or sanfk_aktif_terpilih:
+                    st.markdown("📝 *Pilih metode lampiran bukti transfer:*")
+                    metode_unggah = st.radio("Metode Unggah:", ["Unggah File (JPG, PNG, PDF)", "Gunakan Kamera Langsung"], horizontal=True, key="radio_metode_sanfk_f1_live")
+                    
+                    up_bukti_file = None
+                    cam_bukti = None
+
+                    if metode_unggah == "Unggah File (JPG, PNG, PDF)":
+                        up_bukti_file = st.file_uploader("Pilih File Bukti Transfer", type=["jpg", "jpeg", "png", "pdf"], key=f"up_file_sanfk_f1_single_{st.session_state['uploader_counter']}")
+                    else:
+                        cam_bukti = st.camera_input("Potret Bukti Transfer dengan Kamera", key=f"cam_input_sanfk_f1_{st.session_state['uploader_counter']}")
+
+                    with st.form("form_unggah_bukti_mandiri", clear_on_submit=True):
+                        if role == "SanFK":
+                            kategori_cf = "Menunggu Validasi Bendahara"
+                            st.markdown("🏷️ Kategori Setoran: **Menunggu Validasi Bendahara** *(Otomatis)*")
+                            
+                            jumlah_tf = st.number_input("Nominal Transfer (Rp)", min_value=0.0, step=10000.0, key="num_nominal_sanfk_f1")
+                            jenis_arus_tf = "Masuk (Setoran)"
+                        else:
+                            kategori_cf = st.selectbox(
+                                "Pilih Kategori Transaksi:", 
+                                [
+                                    "Iuran Kas SanFK", 
+                                    "Wakaf Produktif", 
+                                    "Kotak Hijau", 
+                                    "Dana dari Pusat (Baksos/Santunan)",
+                                    "Lain-lain"
+                                ],
+                                key="select_kategori_bendahara_f1_live"
+                            )
+                            jumlah_tf = st.number_input("Nominal Transaksi (Rp)", min_value=0.0, step=10000.0, key="num_nominal_bendahara_f1_live")
+                            jenis_arus_tf = st.selectbox("Jenis Arus Dana:", ["Masuk (Setoran)", "Keluar / Penyaluran"], key="select_arus_bendahara_f1_live")
+
+                        ket_tf = st.text_area("Komentar / Catatan Transfer:", key="textarea_ket_tf_f1_live")
+                        btn_kirim_dok = st.form_submit_button("Kirim Bukti Transfer & Komentar")
+                        
+                        if btn_kirim_dok:
+                            path_bukti = ""
+                            if up_bukti_file is not None:
+                                path_bukti = os.path.join(UPLOAD_DIR, f"tf_{datetime.now().strftime('%Y%m%d%H%M%S')}_{up_bukti_file.name}")
+                                with open(path_bukti, "wb") as f:
+                                    f.write(up_bukti_file.getbuffer())
+                            elif cam_bukti is not None:
+                                path_bukti = os.path.join(UPLOAD_DIR, f"tf_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
+                                with open(path_bukti, "wb") as f:
+                                    f.write(cam_bukti.getbuffer())
+
+                            if path_bukti or ket_tf:
+                                final_bukti_str = f"{path_bukti}|Private" if path_bukti else ""
+                                execute_query(
+                                    "INSERT INTO cashflow_transaksi (kategori, pengirim, sub_mawil, tanggal, jumlah, jenis_arus, keterangan, bukti_transfer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                    (kategori_cf, nama_pengirim_aktif, sub_mw_asal, str(date.today()), jumlah_tf, jenis_arus_tf, ket_tf, final_bukti_str)
+                                )
+                                
+                                st.session_state["uploader_counter"] += 1
+                                st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dan komentar berhasil dikirim untuk kategori **{kategori_cf}** (Nominal: **Rp {jumlah_tf:,.0f}**). Form dan uploader telah dibersihkan untuk sesi baru."
+                                st.rerun()
+                            else:
+                                st.warning("⚠️ Harap lampirkan bukti transfer atau isi komentar terlebih dahulu!")
+
+        # --- TAB 2: DAFTAR MENUNGGU VALIDASI (Hanya untuk SanFK) ---
+        if role == "SanFK" and tab_f2 is not None:
+            with tab_f2:
+                st.subheader("⏳ Status Setoran Anda yang Menunggu Validasi")
+                if not sanfk_aktif_terpilih:
+                    st.warning("⚠️ Silakan pilih profil SanFK Anda di sidebar terlebih dahulu.")
+                    df_menunggu = pd.DataFrame()
+                else:
+                    st.info(f"💡 Tab ini menampilkan status setoran atas nama **{sanfk_aktif_terpilih}** yang sedang menunggu validasi.")
+                    df_menunggu = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? AND kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC", (sanfk_aktif_terpilih,))
+                
+                if df_menunggu.empty:
+                    st.success("🎉 Tidak ada setoran yang sedang menunggu validasi saat ini.")
+                else:
+                    df_tampil_pending = df_menunggu[['id', 'tanggal', 'pengirim', 'sub_mawil', 'jumlah', 'keterangan']].copy()
+                    df_tampil_pending.columns = ['ID', 'Tanggal', 'Pengirim (SanFK)', 'Sub Mawil', 'Jumlah (Rp)', 'Komentar/Catatan']
+                    df_tampil_pending.index = range(1, len(df_tampil_pending) + 1)
+                    st.dataframe(df_tampil_pending, use_container_width=True)
+
+        # --- TAB 3: ARSIP & KOREKSI BUKTI ---
+        with tab_f3:
+            st.subheader("📁 Arsip & Koreksi Bukti Transfer")
+            st.info("🔒 Tab ini menampilkan arsip bukti transfer. Bendahara Mawil dapat mengunduh bukti yang dikirimkan SanFK, sedangkan penghapusan arsip hanya dapat dilakukan oleh pengirim (SanFK) atau pembuat data.")
+
+            if role not in ["SanFK", "Bendahara Mawil"]:
+                st.warning("⚠️ Akses dibatasi.")
+            else:
+                if role == "SanFK":
+                    if not sanfk_aktif_terpilih:
+                        st.warning("Silakan pilih profil SanFK di sidebar.")
+                        df_arsip = pd.DataFrame()
+                    else:
+                        df_arsip = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? ORDER BY id DESC", (sanfk_aktif_terpilih,))
+                else:
+                    df_arsip = get_data("SELECT * FROM cashflow_transaksi ORDER BY id DESC")
+
+                if df_arsip.empty:
+                    st.info("Belum ada arsip bukti transfer atau komentar yang tersimpan.")
+                else:
+                    for _, r_arsip in df_arsip.iterrows():
+                        with st.container():
+                            st.markdown(f"""
+                            <div style="background: #F4F6F6; padding: 14px; border-radius: 8px; border: 1px solid #BDC3C7; margin-bottom: 12px;">
+                                <p style="margin: 0; font-size: 14px; color: #7F8C8D;">📅 Tanggal: {r_arsip['tanggal']} | 👤 Pengirim: <b>{r_arsip['pengirim']}</b> ({r_arsip['sub_mawil']}) ID Transaksi: [{r_arsip['id']}]</p>
+                                <p style="margin: 4px 0;">🏷️ Kategori: <b>{r_arsip['kategori']}</b> | 💰 Nominal: <b>Rp {r_arsip['jumlah']:,.0f}</b></p>
+                                <p style="margin: 4px 0; background: #fff; padding: 8px; border-radius: 4px;">💬 <b>Komentar/Catatan:</b> {r_arsip['keterangan'] if r_arsip['keterangan'] else '-'}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            b_str = r_arsip.get('bukti_transfer', '')
+                            b_path = b_str.split("|")[0].strip() if "|" in b_str else b_str.strip()
+                            
+                            if b_path and os.path.exists(b_path):
+                                ext_file = b_path.split('.')[-1].lower()
+                                if ext_file in ['jpg', 'jpeg', 'png']:
+                                    st.markdown(f'<img src="{get_image_base64(b_path)}" style="max-width: 250px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 8px;">', unsafe_allow_html=True)
+                                else:
+                                    st.write("📄 Dokumen PDF/File Terlampir")
+                                
+                                with open(b_path, "rb") as file_dl:
+                                    st.download_button(
+                                        label=f"📥 Download Bukti (ID: {r_arsip['id']})",
+                                        data=file_dl,
+                                        file_name=os.path.basename(b_path),
+                                        key=f"dl_arsip_{r_arsip['id']}"
+                                    )
+                            
+                            boleh_hapus = True
+                            if role == "Bendahara Mawil" and r_arsip['pengirim'] != "Bendahara Mawil":
+                                boleh_hapus = False
+
+                            if boleh_hapus:
+                                col_del1, col_del2 = st.columns([1, 4])
+                                with col_del1:
+                                    if st.button("🗑️ Hapus Data Ini", key=f"btn_hapus_arsip_{r_arsip['id']}", type="primary"):
+                                        if b_path and os.path.exists(b_path):
+                                            try:
+                                                os.remove(b_path)
+                                            except:
+                                                pass
+                                        execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (r_arsip['id'],))
+                                        st.success(f"Data transaksi ID [{r_arsip['id']}] berhasil dihapus!")
+                                        st.rerun()
+                                with col_del2:
+                                    st.caption("Jika foto/dokumen salah, klik tombol hapus di samping, lalu unggah kembali melalui Tab 1.")
+                            else:
+                                st.info("🔒 Arsip dari SanFK ini hanya dapat diunduh oleh Bendahara Mawil (penghapusan arsip wewenang SanFK pengirim).")
+
+                            st.divider()
+
+        # --- TAB 4: LAPORAN CASHFLOW & KATEGORI ---
+        with tab_f4:
+            st.subheader("📊 Laporan Cashflow Terstruktur")
+            
+            df_cf_all = get_data("SELECT * FROM cashflow_transaksi WHERE kategori != 'Menunggu Validasi Bendahara' ORDER BY tanggal ASC, id ASC")
+            
+            if df_cf_all.empty:
+                st.info("Belum ada data cashflow sah tercatat.")
+            else:
+                df_cf_all['tanggal_dt'] = pd.to_datetime(df_cf_all['tanggal'])
+                min_date = df_cf_all['tanggal_dt'].min().date()
+                max_date = df_cf_all['tanggal_dt'].max().date()
+
+                st.markdown("📅 **Filter Rentang Tanggal Laporan:**")
+                col_d1, col_d2 = st.columns(2)
+                with col_d1:
+                    tgl_mulai = st.date_input("Dari Tanggal:", value=min_date, key="filter_tgl_mulai_cf")
+                with col_d2:
+                    tgl_selesai = st.date_input("Sampai Tanggal:", value=max_date, key="filter_tgl_selesai_cf")
+
+                cat_filter = st.selectbox(
+                    "Filter Kategori:", 
+                    [
+                        "Semua Kategori", 
+                        "Iuran Kas SanFK", 
+                        "Wakaf Produktif", 
+                        "Kotak Hijau", 
+                        "Dana dari Pusat (Baksos/Santunan)",
+                        "Lain-lain"
+                    ],
+                    key="filter_kategori_cf_tab_laporan"
+                )
+
+                mask_sebelum = df_cf_all['tanggal_dt'].dt.date < tgl_mulai
+                df_sebelum = df_cf_all[mask_sebelum]
+                if cat_filter != "Semua Kategori":
+                    df_sebelum = df_sebelum[df_sebelum['kategori'] == cat_filter]
+                
+                masuk_sebelum = df_sebelum[df_sebelum['jenis_arus'] == 'Masuk (Setoran)']['jumlah'].sum()
+                keluar_sebelum = df_sebelum[df_sebelum['jenis_arus'] == 'Keluar / Penyaluran']['jumlah'].sum()
+                saldo_awal = masuk_sebelum - keluar_sebelum
+
+                mask_rentang = (df_cf_all['tanggal_dt'].dt.date >= tgl_mulai) & (df_cf_all['tanggal_dt'].dt.date <= tgl_selesai)
+                df_cf_f = df_cf_all[mask_rentang]
+                if cat_filter != "Semua Kategori":
+                    df_cf_f = df_cf_f[df_cf_f['kategori'] == cat_filter]
+
+                total_masuk = df_cf_f[df_cf_f['jenis_arus'] == 'Masuk (Setoran)']['jumlah'].sum()
+                total_keluar = df_cf_f[df_cf_f['jenis_arus'] == 'Keluar / Penyaluran']['jumlah'].sum()
+                saldo_akhir = saldo_awal + total_masuk - total_keluar
+
+                st.markdown("---")
+                
+                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                with col_m1:
+                    st.metric("Saldo Awal", f"Rp {saldo_awal:,.0f}")
+                with col_m2:
+                    st.metric("Total Masuk", f"Rp {total_masuk:,.0f}")
+                with col_m3:
+                    st.metric("Total Keluar", f"Rp {total_keluar:,.0f}")
+                with col_m4:
+                    st.metric("Saldo Akhir", f"Rp {saldo_akhir:,.0f}")
+
+                st.markdown("---")
+                
+                # Tampilkan Tabel Data
+                df_t_show = df_cf_f[['id', 'tanggal', 'kategori', 'pengirim', 'sub_mawil', 'jumlah', 'jenis_arus', 'keterangan']].copy()
+                df_t_show.columns = ['ID', 'Tanggal', 'Kategori', 'Pengirim', 'Sub Mawil', 'Jumlah (Rp)', 'Arus', 'Keterangan']
+                st.dataframe(df_t_show, use_container_width=True, hide_index=True)
+
+                # --- FITUR EDIT & HAPUS KHUSUS BENDAHARA MAWIL PADA TAB LAPORAN ---
+                if role == "Bendahara Mawil":
+                    st.markdown("---")
+                    st.markdown("### 🛠️ Kelola Transaksi (Edit & Hapus oleh Bendahara Mawil)")
+                    
+                    if df_cf_f.empty:
+                        st.info("Tidak ada transaksi pada filter ini untuk dikelola.")
+                    else:
+                        dict_transaksi_pilihan = {
+                            f"ID [{r['id']}] - {r['tanggal']} | {r['kategori']} | Rp {r['jumlah']:,.0f} ({r['pengirim']})": r['id']
+                            for _, r in df_cf_f.iterrows()
+                        }
+                        
+                        pilih_trx_label = st.selectbox(
+                            "Pilih Transaksi yang Ingin Diedit atau Dihapus:",
+                            list(dict_transaksi_pilihan.keys()),
+                            key="select_trx_kelola_bendahara"
+                        )
+                        id_trx_pilih = dict_transaksi_pilihan[pilih_trx_label]
+                        
+                        trx_detail_row = get_data("SELECT * FROM cashflow_transaksi WHERE id = ?", (id_trx_pilih,)).iloc[0]
+
+                        with st.form(f"form_edit_hapus_trx_{id_trx_pilih}", clear_on_submit=True):
+                            st.markdown(f"**Edit Data Transaksi [ID: {id_trx_pilih}]**")
+                            
+                            kategori_opsi = [
+                                "Iuran Kas SanFK", 
+                                "Wakaf Produktif", 
+                                "Kotak Hijau", 
+                                "Dana dari Pusat (Baksos/Santunan)",
+                                "Lain-lain"
+                            ]
+                            # Pastikan kategori lama ada dalam opsi, jika tidak tambahkan di awal
+                            kat_lama = trx_detail_row['kategori']
+                            if kat_lama not in kategori_opsi:
+                                kategori_opsi.insert(0, kat_lama)
+                            idx_kat = kategori_opsi.index(kat_lama)
+
+                            e_kat = st.selectbox("Kategori Transaksi:", kategori_opsi, index=idx_kat, key=f"edit_kat_{id_trx_pilih}")
+                            e_jumlah = st.number_input("Nominal (Rp):", min_value=0.0, step=10000.0, value=float(trx_detail_row['jumlah']), key=f"edit_jumlah_{id_trx_pilih}")
+                            
+                            arus_opsi = ["Masuk (Setoran)", "Keluar / Penyaluran"]
+                            idx_arus = arus_opsi.index(trx_detail_row['jenis_arus']) if trx_detail_row['jenis_arus'] in arus_opsi else 0
+                            e_arus = st.selectbox("Jenis Arus:", arus_opsi, index=idx_arus, key=f"edit_arus_{id_trx_pilih}")
+                            
+                            e_ket = st.text_input("Keterangan / Catatan:", value=str(trx_detail_row['keterangan']), key=f"edit_ket_{id_trx_pilih}")
+
+                            col_btn1, col_btn2 = st.columns(2)
+                            with col_btn1:
+                                btn_simpan_edit = st.form_submit_button("💾 Simpan Perubahan")
+                            with col_btn2:
+                                btn_hapus_trx = st.form_submit_button("🗑️ Hapus Transaksi Ini")
+
+                            if btn_simpan_edit:
+                                execute_query(
+                                    "UPDATE cashflow_transaksi SET kategori = ?, jumlah = ?, jenis_arus = ?, keterangan = ? WHERE id = ?",
+                                    (e_kat, e_jumlah, e_arus, e_ket, id_trx_pilih)
+                                )
+                                st.success(f"✅ Transaksi ID [{id_trx_pilih}] berhasil diperbarui!")
+                                st.rerun()
+
+                            if btn_hapus_trx:
+                                # HANYA HAPUS BARIS DATA DI DATABASE TANPA MENYENTUH/MENGHAPUS FILE BUKTI FISIK DI FOLDER UPLOADS_FOTO
+                                execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_trx_pilih,))
+                                st.success(f"🗑️ Transaksi ID [{id_trx_pilih}] berhasil dihapus dari tabel cashflow (file bukti aman di arsip)!")
+                                st.rerun()
+
+                # --- TOMBOL DOWNLOAD EXCEL & WORD ---
+                st.markdown("---")
+                st.markdown("📥 **Unduh Laporan Keuangan:**")
+                col_dl1, col_dl2 = st.columns(2)
+
+                # 1. GENERATE EXCEL (.xlsx)
+                with col_dl1:
+                    output_excel = io.BytesIO()
+                    wb = openpyxl.Workbook()
+                    ws = wb.active
+                    ws.title = "Laporan Cashflow"
+                    
+                    ws.append(["LAPORAN CASHFLOW"])
+                    ws.append(["KEUANGAN FK MAWIL RIAU"])
+                    ws.append([f"Periode: {tgl_mulai} s.d. {tgl_selesai} | Kategori: {cat_filter}"])
+                    ws.append([])
+                    
+                    ws.append(["Saldo Awal", saldo_awal])
+                    ws.append(["Total Masuk", total_masuk])
+                    ws.append(["Total Keluar", total_keluar])
+                    ws.append(["Saldo Akhir", saldo_akhir])
+                    ws.append([])
+                    
+                    ws.append(list(df_t_show.columns))
+                    
+                    for _, row in df_t_show.iterrows():
+                        ws.append(list(row))
+                        
+                    wb.save(output_excel)
+                    output_excel.seek(0)
+                    
+                    st.download_button(
+                        label="📥 Download Laporan (Excel .xlsx)",
+                        data=output_excel,
+                        file_name=f"laporan_cashflow_{tgl_mulai}_sd_{tgl_selesai}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="btn_dl_excel_cf"
+                    )
+
+                # 2. GENERATE WORD (.docx)
+                with col_dl2:
+                    output_word = io.BytesIO()
+                    doc = Document()
+                    
+                    p_title1 = doc.add_paragraph()
+                    run_title1 = p_title1.add_run("LAPORAN CASHFLOW")
+                    run_title1.bold = True
+                    run_title1.font.size = Pt(16)
+                    run_title1.font.color.rgb = RGBColor(14, 102, 85)
+                    p_title1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+                    p_title2 = doc.add_paragraph()
+                    run_title2 = p_title2.add_run("KEUANGAN FK MAWIL RIAU")
+                    run_title2.bold = True
+                    run_title2.font.size = Pt(14)
+                    run_title2.font.color.rgb = RGBColor(14, 102, 85)
+                    p_title2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+                    p_sub = doc.add_paragraph(f"Periode: {tgl_mulai} s.d. {tgl_selesai} | Kategori: {cat_filter}")
+                    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    doc.add_paragraph()
+
+                    doc.add_heading("Ringkasan Saldo", level=2)
+                    p_sum = doc.add_paragraph()
+                    p_sum.add_run(f"• Saldo Awal : Rp {saldo_awal:,.0f}\n")
+                    p_sum.add_run(f"• Total Masuk : Rp {total_masuk:,.0f}\n")
+                    p_sum.add_run(f"• Total Keluar : Rp {total_keluar:,.0f}\n")
+                    p_sum.add_run(f"• Saldo Akhir : Rp {saldo_akhir:,.0f}\n")
+                    
+                    doc.add_heading("Detail Transaksi", level=2)
+                    
+                    if not df_t_show.empty:
+                        table = doc.add_table(rows=1, cols=len(df_t_show.columns))
+                        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                        table.style = 'Table Grid'
+                        
+                        hdr_cells = table.rows[0].cells
+                        for i, col_name in enumerate(df_t_show.columns):
+                            hdr_cells[i].text = str(col_name)
+                            for paragraph in hdr_cells[i].paragraphs:
+                                for run in paragraph.runs:
+                                    run.bold = True
+                                    
+                        for _, row in df_t_show.iterrows():
+                            row_cells = table.add_row().cells
+                            for i, val in enumerate(row):
+                                row_cells[i].text = str(val)
+                                
+                    doc.save(output_word)
+                    output_word.seek(0)
+                    
+                    st.download_button(
+                        label="📥 Download Laporan (Word .docx)",
+                        data=output_word,
+                        file_name=f"laporan_cashflow_{tgl_mulai}_sd_{tgl_selesai}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        key="btn_dl_word_cf"
+                    )
+
+        # --- TAB 5 & 6 KHUSUS BENDAHARA MAWIL ---
+        if role == "Bendahara Mawil":
+            with tab_f5:
+                st.subheader("🏦 Tab Khusus Pendataan Nomor Rekening (Bendahara Mawil)")
+                with st.form("form_tambah_rekening_baru", clear_on_submit=True):
+                    st.markdown("##### ➕ Tambah Rekening Tujuan Baru")
+                    n_bank = st.text_input("Nama Bank (Cth: BSI, BCA, Mandiri)", key="add_bank_f4")
+                    n_rek = st.text_input("Nomor Rekening", key="add_norek_f4")
+                    n_an = st.text_input("Atas Nama Pemilik Rekening", key="add_an_f4")
+                    n_ket = st.text_input("Keterangan Rekening (Cth: Padepokan Fatwa Kehidupan / Jabung)", key="add_ket_f4")
+                    
+                    btn_simpan_rek = st.form_submit_button("Simpan Rekening Baru")
+                    if btn_simpan_rek and n_rek:
+                        execute_query("INSERT INTO rekening_tujuan (nama_bank, nomor_rekening, atas_nama, keterangan) VALUES (?, ?, ?, ?)", (n_bank, n_rek, n_an, n_ket))
+                        st.success("Nomor rekening berhasil ditambahkan!")
+                        st.rerun()
+
+                st.markdown("---")
+                st.markdown("##### 🛠️ Kelola, Edit, atau Hapus Nomor Rekening Terdaftar")
+                
+                df_rek_manage = get_data("SELECT * FROM rekening_tujuan")
+                if df_rek_manage.empty:
+                    st.info("Belum ada nomor rekening yang terdaftar di database.")
+                else:
+                    pilihan_rek_dict = {f"ID [{r['id']}]: {r['nama_bank']} - {r['nomor_rekening']} ({r['atas_nama']})": r['id'] for _, r in df_rek_manage.iterrows()}
+                    pilih_label_rek = st.selectbox("Pilih Nomor Rekening untuk Dikelola:", list(pilihan_rek_dict.keys()), key="select_rek_manage_box_f4")
+                    id_rek_aktif = pilihan_rek_dict[pilih_label_rek]
+
+                    df_cek_aktif = get_data("SELECT * FROM rekening_tujuan WHERE id = ?", (id_rek_aktif,))
+                    if not df_cek_aktif.empty:
+                        data_rek_pilih = df_cek_aktif.iloc[0]
+
+                        col_h1, col_h2 = st.columns([3, 1])
+                        with col_h2:
+                            if st.button("🗑️ Hapus Rekening Ini", key=f"btn_del_rek_outside_{id_rek_aktif}", type="primary"):
+                                execute_query("DELETE FROM rekening_tujuan WHERE id = ?", (id_rek_aktif,))
+                                st.success("Nomor rekening berhasil dihapus dari database!")
+                                st.rerun()
+
+                        with st.form(f"form_edit_rek_{id_rek_aktif}"):
+                            e_bank = st.text_input("Ubah Nama Bank", value=data_rek_pilih['nama_bank'], key=f"ebank_{id_rek_aktif}")
+                            e_norek = st.text_input("Ubah Nomor Rekening", value=data_rek_pilih['nomor_rekening'], key=f"enorek_{id_rek_aktif}")
+                            e_an = st.text_input("Ubah Atas Nama", value=data_rek_pilih['atas_nama'], key=f"ean_{id_rek_aktif}")
+                            e_ket = st.text_input("Ubah Keterangan", value=data_rek_pilih['keterangan'], key=f"eket_{id_rek_aktif}")
+
+                            btn_s_erek = st.form_submit_button("💾 Simpan Perubahan Rekening")
+                            if btn_s_erek:
+                                execute_query("UPDATE rekening_tujuan SET nama_bank = ?, nomor_rekening = ?, atas_nama = ?, keterangan = ? WHERE id = ?", (e_bank, e_norek, e_an, e_ket, id_rek_aktif))
+                                st.success("Data rekening berhasil diperbarui!")
+                                st.rerun()
+
+            with tab_f6:
+                st.subheader("🛠️ Otoritas & Validasi Transaksi")
+                st.info("💡 Menu ini menampilkan daftar transaksi yang memerlukan validasi atau koreksi dari Bendahara Mawil.")
+
+                df_all_tf = get_data("SELECT * FROM cashflow_transaksi WHERE kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC")
+                
+                if df_all_tf.empty:
+                    st.success("🎉 Semua transaksi sudah tervalidasi! Tidak ada data yang menunggu validasi saat ini.")
+                else:
+                    pilihan_all_dict = {
+                        f"[{r['tanggal']}] {r['pengirim']} ({r['sub_mawil']}) - Rp {r['jumlah']:,.0f} [ID: {r['id']}]": r['id']
+                        for _, r in df_all_tf.iterrows()
+                    }
+                    
+                    pilih_label_all = st.selectbox(
+                        "Pilih Transaksi untuk Divalidasi:",
+                        list(pilihan_all_dict.keys()),
+                        key="select_all_transaksi_tab6"
+                    )
+                    id_all_pilih = pilihan_all_dict[pilih_label_all]
+
+                    data_all_detail = get_data(
+                        "SELECT * FROM cashflow_transaksi WHERE id = ?", (id_all_pilih,)
+                    ).iloc[0]
+
+                    with st.form(f"form_otoritas_umum_{id_all_pilih}", clear_on_submit=True):
+                        st.markdown("##### 📝 Validasi / Koreksi Transaksi")
+                        
+                        kategori_tersedia_otoritas = [
+                            "Iuran Kas SanFK", 
+                            "Wakaf Produktif", 
+                            "Kotak Hijau", 
+                            "Dana dari Pusat (Baksos/Santunan)",
+                            "Lain-lain"
+                        ]
+
+                        e_kat_umum = st.selectbox(
+                            "Pilih Kategori Sah Transaksi:", 
+                            kategori_tersedia_otoritas, 
+                            index=0,
+                            key=f"ekat_umum_{id_all_pilih}"
+                        )
+                        
+                        st.markdown(f"**Nominal Tetap:** Rp {data_all_detail['jumlah']:,.0f}")
+                        e_arus_umum = st.selectbox("Jenis Arus Dana:", ["Masuk (Setoran)", "Keluar / Penyaluran"], index=0, key=f"earus_umum_{id_all_pilih}")
+                        e_ket_umum = st.text_input("Keterangan", value=data_all_detail['keterangan'], key=f"eket_umum_{id_all_pilih}")
+                        
+                        col_o1, col_o2 = st.columns(2)
+                        with col_o1:
+                            btn_s_oum = st.form_submit_button("💾 Validasi")
+                        with col_o2:
+                            btn_h_oum = st.form_submit_button("🗑️ Hapus Transaksi")
+
+                        if btn_s_oum:
+                            execute_query(
+                                "UPDATE cashflow_transaksi SET kategori = ?, jenis_arus = ?, keterangan = ? WHERE id = ?", 
+                                (e_kat_umum, e_arus_umum, e_ket_umum, id_all_pilih)
+                            )
+                            st.success(f"✅ Transaksi ID [{id_all_pilih}] berhasil divalidasi ke kategori **{e_kat_umum}**! Form dibersihkan.")
+                            st.rerun()
+                            
+                        if btn_h_oum:
+                            # HANYA HAPUS BARIS DATA DI DATABASE TANPA MENYENTUH/MENGHAPUS FILE BUKTI FISIK DI FOLDER UPLOADS_FOTO
+                            execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_all_pilih,))
+                            st.success(f"🗑️ Transaksi ID [{id_all_pilih}] berhasil dihapus! Form dibersihkan.")
+                            st.rerun()
