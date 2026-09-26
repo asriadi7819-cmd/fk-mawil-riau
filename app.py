@@ -14,17 +14,52 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from streamlit_cookies_controller import CookieController
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
+from github import Github
 
-# --- KONFIGURASI CLOUDINARY ---
-cloudinary.config(
-    cloud_name="dexhqltm",
-    api_key="585645177582163",
-    api_secret="JFQYgD_hErHRikJLQDPoVcTUKb8",
-    secure=True
-)
+# --- KONFIGURASI GITHUB STORAGE ---
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_REPO = os.getenv("GITHUB_REPO", "asriadi7819-cmd/fk-mawil-riau")
+
+def upload_file_to_github(uploaded_file, folder_name="uploads_foto"):
+    """
+    Mengunggah file dari Streamlit uploader langsung ke GitHub Repository.
+    Mengembalikan Raw URL publik file tersebut jika berhasil.
+    """
+    if not GITHUB_TOKEN:
+        st.error("GITHUB_TOKEN belum dikonfigurasi di Environment Variables!")
+        return None
+
+    try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(GITHUB_REPO)
+
+        file_bytes = uploaded_file.getvalue()
+        file_name = uploaded_file.name.replace(" ", "_")
+        path_in_repo = f"{folder_name}/{file_name}"
+        commit_message = f"Upload file {file_name} via Streamlit App"
+
+        try:
+            existing_file = repo.get_contents(path_in_repo)
+            repo.update_file(
+                path=path_in_repo,
+                message=f"Update {file_name}",
+                content=file_bytes,
+                sha=existing_file.sha
+            )
+        except Exception:
+            repo.create_file(
+                path=path_in_repo,
+                message=commit_message,
+                content=file_bytes
+            )
+
+        branch = repo.default_branch
+        raw_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{branch}/{path_in_repo}"
+        return raw_url
+
+    except Exception as e:
+        st.error(f"Gagal mengunggah ke GitHub: {e}")
+        return None
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -372,7 +407,6 @@ if "gen_captcha_code" not in st.session_state:
 
 role = st.session_state.role
 
-# Tentukan sanfk_aktif_terpilih secara global atau default jika session sudah ada
 sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
 
 # --- SIDEBAR: FORM LOGIN, REGISTER ATAU MENU UTAMA ---
@@ -840,30 +874,23 @@ if menu == "Beranda & Pengumuman":
                     if jdl:
                         path_list = []
                         if foto_pengumuman_files:
-                            with st.spinner("Mengunggah file ke Cloudinary..."):
+                            with st.spinner("Mengunggah file ke GitHub Repository..."):
                                 for f_item in foto_pengumuman_files:
-                                    try:
-                                        upload_res = cloudinary.uploader.upload(f_item, resource_type="auto")
-                                        f_url = upload_res.get("secure_url")
-                                        
+                                    f_url = upload_file_to_github(f_item, folder_name="uploads_pengumuman")
+                                    if f_url:
                                         akses_dipilih = file_access_settings.get(f_item.name, "Private")
                                         path_list.append(f"{f_url}|{akses_dipilih}")
-                                    except Exception as e:
-                                        st.error(f"Gagal mengunggah {f_item.name}: {e}")
-                            
+                        
                         if cam_pengumuman is not None:
-                            with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
-                                try:
-                                    upload_cam = cloudinary.uploader.upload(cam_pengumuman, resource_type="image")
-                                    cam_url = upload_cam.get("secure_url")
+                            with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
+                                cam_url = upload_file_to_github(cam_pengumuman, folder_name="uploads_pengumuman")
+                                if cam_url:
                                     path_list.append(f"{cam_url}|{cam_akses}")
-                                except Exception as e:
-                                    st.error(f"Gagal mengunggah foto kamera: {e}")
-                                
+                        
                         foto_p_str = ",".join(path_list) if path_list else ""
                         waktu_skr = datetime.now().strftime("%Y-%m-%d %H:%M")
                         execute_query("INSERT INTO pengumuman (waktu, judul, isi, pembuat, foto_pengumuman) VALUES (?, ?, ?, ?, ?)", (waktu_skr, jdl, isi_p, role, foto_p_str))
-                        st.success("Pengumuman berhasil disiarkan dengan lampiran file di Cloudinary!")
+                        st.success("Pengumuman berhasil disiarkan dengan lampiran file di GitHub!")
                         st.rerun()
                     else:
                         st.warning("Judul pengumuman wajib diisi!")
@@ -905,7 +932,7 @@ if menu == "Beranda & Pengumuman":
                                     path_img, akses_file_item = item_str.split("|", 1)
                                 else:
                                     path_img, akses_file_item = item_str, "Public"
-                                
+                            
                                 st.markdown(f"---")
                                 ext_file = path_img.split('.')[-1].lower().split('?')[0]
                                 
@@ -925,8 +952,8 @@ if menu == "Beranda & Pengumuman":
                                     elif ext_file in ['mp3', 'wav', 'ogg', 'm4a']:
                                         st.audio(path_img)
                                     else:
-                                        st.info(f"📄 Berkas / Dokumen Cloud")
-                                        
+                                        st.info(f"📄 Berkas / Dokumen GitHub")
+                                    
                                 with col_prev2:
                                     ubah_akses_item = st.selectbox(
                                         f"Ubah Akses File {idx_img + 1}", 
@@ -982,32 +1009,25 @@ if menu == "Beranda & Pengumuman":
                                 existing_paths = list_fp
                                 
                                 if edit_foto_files:
-                                    with st.spinner("Mengunggah file baru ke Cloudinary..."):
+                                    with st.spinner("Mengunggah file baru ke GitHub Repository..."):
                                         for ef_item in edit_foto_files:
-                                            try:
-                                                upload_ef = cloudinary.uploader.upload(ef_item, resource_type="auto")
-                                                ef_url = upload_ef.get("secure_url")
-                                                
+                                            ef_url = upload_file_to_github(ef_item, folder_name="uploads_pengumuman")
+                                            if ef_url:
                                                 akses_ef = edit_file_access_settings.get(ef_item.name, "Private")
                                                 existing_paths.append(f"{ef_url}|{akses_ef}")
-                                            except Exception as e:
-                                                st.error(f"Gagal upload {ef_item.name}: {e}")
-                                        
+                                    
                                 if edit_cam_file is not None:
                                     with st.spinner("Mengunggah foto kamera baru..."):
-                                        try:
-                                            upload_ecam = cloudinary.uploader.upload(edit_cam_file, resource_type="image")
-                                            ecam_url = upload_ecam.get("secure_url")
+                                        ecam_url = upload_file_to_github(edit_cam_file, folder_name="uploads_pengumuman")
+                                        if ecam_url:
                                             existing_paths.append(f"{ecam_url}|{edit_cam_akses}")
-                                        except Exception as e:
-                                            st.error(f"Gagal upload kamera: {e}")
-                                        
+                                    
                                 foto_p_path_e = ",".join(existing_paths)
                                 execute_query(
                                     "UPDATE pengumuman SET judul = ?, isi = ?, foto_pengumuman = ? WHERE id = ?",
                                     (edit_jdl, edit_isi, foto_p_path_e, id_p_terpilih)
                                 )
-                                st.success("Pengumuman dan file baru berhasil disimpan di Cloudinary!")
+                                st.success("Pengumuman dan file baru berhasil disimpan di GitHub!")
                                 st.rerun()
                         with col_eb2:
                             if st.button("🗑️ Hapus Pengumuman Ini Sepenuhnya", key=f"btn_del_p_{id_p_terpilih}"):
@@ -1049,7 +1069,7 @@ if menu == "Beranda & Pengumuman":
                                 elif ext_f in ['mp3', 'wav', 'ogg', 'm4a']:
                                     st.audio(f_path)
                                 else:
-                                    st.info(f"📄 Berkas / Dokumen Cloud")
+                                    st.info(f"📄 Berkas / Dokumen GitHub")
                                 
                                 can_download = (akses_file_item == "Public") or (role == pembuat_pengumuman)
                                 if can_download:
@@ -1154,7 +1174,7 @@ if menu == "Beranda & Pengumuman":
                         )
                         st.success(f"Posisi **{pilih_jab_label}** berhasil dikosongkan!")
                         st.rerun()
-
+                        
 # --- 4. AGENDA KOPDAR MAWIL & BAKSOS ---
 elif menu == "Agenda Kopdar Mawil & Baksos":
     st.title("📅 Agenda Kopdar Mawil & Baksos (Tingkat Provinsi)")
@@ -1377,7 +1397,7 @@ elif menu == "Galeri Resmi (Admin)":
                                         elif ext_fr in ['mp3', 'wav', 'ogg', 'm4a']:
                                             st.audio(f_path_r)
                                         else:
-                                            st.info(f"📄 Berkas / Dokumen Cloud")
+                                            st.info(f"📄 Berkas / Dokumen GitHub")
                                         
                                         can_download_r = (akses_file_item_r == "Public") or (role == "Admin Dokumentasi Mawil")
                                         if can_download_r:
@@ -1447,33 +1467,26 @@ elif menu == "Galeri Resmi (Admin)":
                     if judul_kegiatan and (foto_resmi_files or cam_resmi):
                         path_list_r = []
                         if foto_resmi_files:
-                            with st.spinner("Mengunggah file ke Cloudinary..."):
+                            with st.spinner("Mengunggah file ke GitHub Repository..."):
                                 for fr_item in foto_resmi_files:
-                                    try:
-                                        upload_fr = cloudinary.uploader.upload(fr_item, resource_type="auto")
-                                        fr_url = upload_fr.get("secure_url")
-                                        
+                                    fr_url = upload_file_to_github(fr_item, folder_name="uploads_galeri_resmi")
+                                    if fr_url:
                                         akses_dipilih_r = file_access_settings_r.get(fr_item.name, "Private")
                                         path_list_r.append(f"{fr_url}|{akses_dipilih_r}")
-                                    except Exception as e:
-                                        st.error(f"Gagal mengunggah {fr_item.name}: {e}")
-                                
+                        
                         if cam_resmi is not None:
-                            with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
-                                try:
-                                    upload_cam_r = cloudinary.uploader.upload(cam_resmi, resource_type="image")
-                                    cam_url_r = upload_cam_r.get("secure_url")
+                            with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
+                                cam_url_r = upload_file_to_github(cam_resmi, folder_name="uploads_galeri_resmi")
+                                if cam_url_r:
                                     path_list_r.append(f"{cam_url_r}|{cam_akses_r}")
-                                except Exception as e:
-                                    st.error(f"Gagal mengunggah foto kamera: {e}")
-                                
+                        
                         foto_r_str = ",".join(path_list_r) if path_list_r else ""
                         waktu_post_r = datetime.now().strftime("%Y-%m-%d %H:%M")
                         execute_query(
                             "INSERT INTO galeri_resmi (judul, kategori, waktu, foto_resmi) VALUES (?, ?, ?, ?)",
                             (judul_kegiatan, "-", waktu_post_r, foto_r_str)
                         )
-                        st.success(f"Dokumentasi berhasil diunggah ke Galeri Resmi via Cloudinary!")
+                        st.success(f"Dokumentasi berhasil diunggah ke Galeri Resmi via GitHub!")
                         st.rerun()
                     else:
                         st.warning("Kolom input dan file lampiran wajib diisi!")
@@ -1520,8 +1533,8 @@ elif menu == "Galeri Resmi (Admin)":
                                 elif ext_file_r in ['mp3', 'wav', 'ogg', 'm4a']:
                                     st.audio(path_img_r)
                                 else:
-                                    st.info(f"📄 Berkas / Dokumen Cloud")
-                                    
+                                    st.info(f"📄 Berkas / Dokumen GitHub")
+                                
                             with col_pr2:
                                 ubah_akses_item_r = st.selectbox(
                                     f"Ubah Akses File {idx_img_r + 1}", 
@@ -1576,32 +1589,25 @@ elif menu == "Galeri Resmi (Admin)":
                             existing_paths_r = list_fr
                             
                             if edit_foto_files_r:
-                                with st.spinner("Mengunggah file baru ke Cloudinary..."):
+                                with st.spinner("Mengunggah file baru ke GitHub Repository..."):
                                     for efr_item in edit_foto_files_r:
-                                        try:
-                                            upload_efr = cloudinary.uploader.upload(efr_item, resource_type="auto")
-                                            efr_url = upload_efr.get("secure_url")
-                                            
+                                        efr_url = upload_file_to_github(efr_item, folder_name="uploads_galeri_resmi")
+                                        if efr_url:
                                             akses_efr = edit_file_access_settings_r.get(efr_item.name, "Private")
                                             existing_paths_r.append(f"{efr_url}|{akses_efr}")
-                                        except Exception as e:
-                                            st.error(f"Gagal upload {efr_item.name}: {e}")
-                                    
+                                
                             if edit_cam_file_r is not None:
                                 with st.spinner("Mengunggah foto kamera baru..."):
-                                    try:
-                                        upload_ecam_r = cloudinary.uploader.upload(edit_cam_file_r, resource_type="image")
-                                        ecam_url_r = upload_ecam_r.get("secure_url")
+                                    ecam_url_r = upload_file_to_github(edit_cam_file_r, folder_name="uploads_galeri_resmi")
+                                    if ecam_url_r:
                                         existing_paths_r.append(f"{ecam_url_r}|{edit_cam_akses_r}")
-                                    except Exception as e:
-                                        st.error(f"Gagal upload kamera: {e}")
-                                    
+                                
                             foto_r_path_e = ",".join(existing_paths_r)
                             execute_query(
                                 "UPDATE galeri_resmi SET judul = ?, foto_resmi = ? WHERE id = ?",
                                 (edit_judul_resmi, foto_r_path_e, id_mr_aktif)
                             )
-                            st.success("Dokumentasi resmi berhasil diperbarui di Cloudinary!")
+                            st.success("Dokumentasi resmi berhasil diperbarui di GitHub!")
                             st.rerun()
                     with col_er2:
                         if st.button("🗑️ Hapus Dokumentasi Ini Sepenuhnya", key=f"btn_del_resmi_full_{id_mr_aktif}"):
@@ -1646,7 +1652,7 @@ elif menu == "Galeri Resmi (Admin)":
                                     elif ext_fr in ['mp3', 'wav', 'ogg', 'm4a']:
                                         st.audio(f_path_r)
                                     else:
-                                        st.info(f"📄 Berkas / Dokumen Cloud")
+                                        st.info(f"📄 Berkas / Dokumen GitHub")
                                     
                                     can_download_r = (akses_file_item_r == "Public") or (role == "Admin Dokumentasi Mawil")
                                     if can_download_r:
@@ -2116,7 +2122,7 @@ elif menu == "Galeri & Feed Umum":
                                     elif ext_fg in ['mp3', 'wav', 'ogg', 'm4a']:
                                         st.audio(f_path_g)
                                     else:
-                                        st.info(f"📄 Berkas / Dokumen Cloud")
+                                        st.info(f"📄 Berkas / Dokumen GitHub")
                                     
                                     if st.button(f"🗑️ Hapus File {i+1} Ini", key=f"btn_sekre_del_file_{post_id}_{i}"):
                                         arr_foto_g.pop(i)
@@ -2183,7 +2189,7 @@ elif menu == "Galeri & Feed Umum":
                                         elif ext_fg in ['mp3', 'wav', 'ogg', 'm4a']:
                                             st.audio(f_path_g)
                                         else:
-                                            st.info(f"📄 Berkas / Dokumen Cloud")
+                                            st.info(f"📄 Berkas / Dokumen GitHub")
                                         
                                         can_download_g = (akses_file_item_g == "Public") or (role == "Admin Dokumentasi Mawil") or (role == post['penulis'])
                                         if can_download_g:
@@ -2320,33 +2326,26 @@ elif menu == "Galeri & Feed Umum":
                                 if penulis_terpilih and (konten or foto_galeri_files or cam_galeri):
                                     path_list_g = []
                                     if foto_galeri_files:
-                                        with st.spinner("Mengunggah file ke Cloudinary..."):
+                                        with st.spinner("Mengunggah file ke GitHub Repository..."):
                                             for fg_item in foto_galeri_files:
-                                                try:
-                                                    upload_fg = cloudinary.uploader.upload(fg_item, resource_type="auto")
-                                                    fg_url = upload_fg.get("secure_url")
-                                                    
+                                                fg_url = upload_file_to_github(fg_item, folder_name="uploads_galeri_umum")
+                                                if fg_url:
                                                     akses_dipilih_g = file_access_settings_g.get(fg_item.name, "Private")
                                                     path_list_g.append(f"{fg_url}|{akses_dipilih_g}")
-                                                except Exception as e:
-                                                    st.error(f"Gagal mengunggah {fg_item.name}: {e}")
-                                            
+                                    
                                     if cam_galeri is not None:
-                                        with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
-                                            try:
-                                                upload_cgal = cloudinary.uploader.upload(cam_galeri, resource_type="image")
-                                                cgal_url = upload_cgal.get("secure_url")
+                                        with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
+                                            cgal_url = upload_file_to_github(cam_galeri, folder_name="uploads_galeri_umum")
+                                            if cgal_url:
                                                 path_list_g.append(f"{cgal_url}|{cam_akses_g}")
-                                            except Exception as e:
-                                                st.error(f"Gagal mengunggah foto kamera: {e}")
-                                        
+                                    
                                     foto_g_str = ",".join(path_list_g) if path_list_g else ""
                                     waktu_post = datetime.now().strftime("%Y-%m-%d %H:%M")
                                     execute_query(
                                         "INSERT INTO galeri_umum (penulis, sub_mawil, waktu, konten, foto_galeri, tipe) VALUES (?, ?, ?, ?, ?, ?)", 
                                         (penulis_terpilih, wilayah, waktu_post, konten, foto_g_str, "Postingan")
                                     )
-                                    st.success("Postingan dan lampiran file berhasil dibagikan ke Cloudinary!")
+                                    st.success("Postingan dan lampiran file berhasil dibagikan ke GitHub!")
                                     st.rerun()
                                 else:
                                     st.warning("Konten atau file lampiran wajib diisi!")
@@ -2395,8 +2394,8 @@ elif menu == "Galeri & Feed Umum":
                                     elif ext_file_g in ['mp3', 'wav', 'ogg', 'm4a']:
                                         st.audio(path_img_g)
                                     else:
-                                        st.info(f"📄 Berkas / Dokumen Cloud")
-                                        
+                                        st.info(f"📄 Berkas / Dokumen GitHub")
+                                    
                                 with col_pg2:
                                     ubah_akses_item_g = st.selectbox(
                                         f"Ubah Akses File {idx_img_g + 1}", 
@@ -2451,39 +2450,32 @@ elif menu == "Galeri & Feed Umum":
                                 existing_paths_g = list_fg
                                 
                                 if edit_foto_files_g:
-                                    with st.spinner("Mengunggah file baru ke Cloudinary..."):
+                                    with st.spinner("Mengunggah file baru ke GitHub Repository..."):
                                         for efg_item in edit_foto_files_g:
-                                            try:
-                                                upload_efg = cloudinary.uploader.upload(efg_item, resource_type="auto")
-                                                efg_url = upload_efg.get("secure_url")
-                                                
+                                            efg_url = upload_file_to_github(efg_item, folder_name="uploads_galeri_umum")
+                                            if efg_url:
                                                 akses_efg = edit_file_access_settings_g.get(efg_item.name, "Private")
                                                 existing_paths_g.append(f"{efg_url}|{akses_efg}")
-                                            except Exception as e:
-                                                st.error(f"Gagal upload {efg_item.name}: {e}")
-                                        
+                                    
                                 if edit_cam_file_g is not None:
                                     with st.spinner("Mengunggah foto kamera baru..."):
-                                        try:
-                                            upload_ecam_g = cloudinary.uploader.upload(edit_cam_file_g, resource_type="image")
-                                            ecam_url_g = upload_ecam_g.get("secure_url")
+                                        ecam_url_g = upload_file_to_github(edit_cam_file_g, folder_name="uploads_galeri_umum")
+                                        if ecam_url_g:
                                             existing_paths_g.append(f"{ecam_url_g}|{edit_cam_akses_g}")
-                                        except Exception as e:
-                                            st.error(f"Gagal upload kamera: {e}")
-                                        
+                                    
                                 foto_g_path_e = ",".join(existing_paths_g)
                                 execute_query(
                                     "UPDATE galeri_umum SET konten = ?, foto_galeri = ? WHERE id = ?",
                                     (edit_konten_post, foto_g_path_e, id_mp_aktif)
                                 )
-                                st.success("Postingan dan file baru berhasil disimpan di Cloudinary!")
+                                st.success("Postingan dan file baru berhasil disimpan di GitHub!")
                                 st.rerun()
                         with col_eg2:
                             if st.button("🗑️ Hapus Postingan Ini Sepenuhnya", key=f"btn_del_post_full_{id_mp_aktif}"):
                                 execute_query("DELETE FROM galeri_umum WHERE id = ?", (id_mp_aktif,))
                                 st.success("Postingan berhasil dihapus dari sistem!")
                                 st.rerun()
-                             
+                                
 # --- 6. LAYANAN SANTUNAN & KONTAK ---
 elif menu == "Layanan Santunan & Kontak":
     st.title("🤝 Layanan Santunan Sosial & Kontak Darurat")
@@ -2638,25 +2630,19 @@ elif menu == "Manajemen SanFK & KTA":
                     if nama:
                         final_foto_val = ""
                         
-                        # Upload ke Cloudinary jika menggunakan Unggah Berkas
+                        # Upload ke GitHub jika menggunakan Unggah Berkas
                         if metode_foto_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file is not None:
-                            with st.spinner("Mengunggah berkas ke Cloudinary..."):
-                                try:
-                                    upload_res = cloudinary.uploader.upload(foto_file, resource_type="auto")
-                                    foto_url = upload_res.get("secure_url")
+                            with st.spinner("Mengunggah berkas ke GitHub Repository..."):
+                                foto_url = upload_file_to_github(foto_file, folder_name="uploads_anggota")
+                                if foto_url:
                                     final_foto_val = f"{foto_url}|{akses_sanfk}"
-                                except Exception as e:
-                                    st.error(f"Gagal mengunggah file: {e}")
-                            
-                        # Upload ke Cloudinary jika menggunakan Kamera Langsung
+                        
+                        # Upload ke GitHub jika menggunakan Kamera Langsung
                         elif metode_foto_sanfk == "Gunakan Kamera Langsung" and cam_file is not None:
-                            with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
-                                try:
-                                    upload_cam = cloudinary.uploader.upload(cam_file, resource_type="image")
-                                    cam_url = upload_cam.get("secure_url")
+                            with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
+                                cam_url = upload_file_to_github(cam_file, folder_name="uploads_anggota")
+                                if cam_url:
                                     final_foto_val = f"{cam_url}|{akses_sanfk}"
-                                except Exception as e:
-                                    st.error(f"Gagal mengunggah foto kamera: {e}")
                         
                         execute_query(
                             "INSERT INTO anggota (nama, sub_mawil, jenis_kelamin, alamat, status, letnan_ijazah, tanggal_ijazah, kontak, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -2733,20 +2719,16 @@ elif menu == "Manajemen SanFK & KTA":
                             foto_path_e = file_foto_lama
                             
                             if metode_ganti_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file_e is not None:
-                                with st.spinner("Mengunggah file baru ke Cloudinary..."):
-                                    try:
-                                        upload_efe = cloudinary.uploader.upload(foto_file_e, resource_type="auto")
-                                        foto_path_e = upload_efe.get("secure_url")
-                                    except Exception as e:
-                                        st.error(f"Gagal upload file: {e}")
+                                with st.spinner("Mengunggah file baru ke GitHub Repository..."):
+                                    new_url = upload_file_to_github(foto_file_e, folder_name="uploads_anggota")
+                                    if new_url:
+                                        foto_path_e = new_url
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
                             elif metode_ganti_sanfk == "Gunakan Kamera Langsung" and cam_file_e is not None:
                                 with st.spinner("Mengunggah foto kamera baru..."):
-                                    try:
-                                        upload_came = cloudinary.uploader.upload(cam_file_e, resource_type="image")
-                                        foto_path_e = upload_came.get("secure_url")
-                                    except Exception as e:
-                                        st.error(f"Gagal upload kamera: {e}")
+                                    new_cam_url = upload_file_to_github(cam_file_e, folder_name="uploads_anggota")
+                                    if new_cam_url:
+                                        foto_path_e = new_cam_url
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
                             else:
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
@@ -2756,7 +2738,7 @@ elif menu == "Manajemen SanFK & KTA":
                                 (nama_e, sub_mawil_e, jenis_kelamin_e, alamat_e, status_e, letnan_e, str(tgl_ijazah_e), kontak_e, final_foto_e_val, id_terpilih)
                             )
                             
-                            st.success(f"Data SanFK {nama_e} berhasil diperbarui di Cloudinary!")
+                            st.success(f"Data SanFK {nama_e} berhasil diperbarui di GitHub!")
                             st.rerun()
                     with col_eb2:
                         if st.button("🗑️ Hapus SanFK Ini", key=f"btn_del_agt_{id_terpilih}"):
@@ -2779,7 +2761,7 @@ elif menu == "Manajemen SanFK & KTA":
             else:
                 foto_path, akses_kta = foto_full, "Public"
                 
-            # Jika berupa URL Cloudinary, langsung render tag img menggunakan URL tersebut
+            # Jika berupa URL GitHub / HTTP, langsung render tag img menggunakan URL tersebut
             if foto_path and (foto_path.startswith("http://") or foto_path.startswith("https://")):
                 img_html = f'<img src="{foto_path}" style="width: 85px; height: 105px; object-fit: cover; border-radius: 4px; border: 1px solid #0E6655;">'
             else:
@@ -2819,7 +2801,7 @@ elif menu == "Manajemen SanFK & KTA":
             """, unsafe_allow_html=True)
             
 # --- 5. KEUANGAN & KOTAK HIJAU ---
-if menu == "Keuangan & Kotak Hijau":
+elif menu == "Keuangan & Kotak Hijau":
     # Batasi akses hanya untuk SanFK dan Bendahara Mawil
     if role not in ["SanFK", "Bendahara Mawil"]:
         st.error("⛔ Akses Ditolak!")
@@ -2950,19 +2932,11 @@ if menu == "Keuangan & Kotak Hijau":
                         if btn_kirim_dok:
                             path_bukti = ""
                             if up_bukti_file is not None:
-                                with st.spinner("Mengunggah bukti transfer ke Cloudinary..."):
-                                    try:
-                                        upload_tf = cloudinary.uploader.upload(up_bukti_file, resource_type="auto")
-                                        path_bukti = upload_tf.get("secure_url")
-                                    except Exception as e:
-                                        st.error(f"Gagal mengunggah file: {e}")
+                                with st.spinner("Mengunggah bukti transfer ke GitHub Repository..."):
+                                    path_bukti = upload_file_to_github(up_bukti_file, folder_name="uploads_cashflow")
                             elif cam_bukti is not None:
-                                with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
-                                    try:
-                                        upload_cam_tf = cloudinary.uploader.upload(cam_bukti, resource_type="image")
-                                        path_bukti = upload_cam_tf.get("secure_url")
-                                    except Exception as e:
-                                        st.error(f"Gagal mengunggah foto kamera: {e}")
+                                with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
+                                    path_bukti = upload_file_to_github(cam_bukti, folder_name="uploads_cashflow")
 
                             if path_bukti or ket_tf:
                                 final_bukti_str = f"{path_bukti}|Private" if path_bukti else ""
@@ -2972,7 +2946,7 @@ if menu == "Keuangan & Kotak Hijau":
                                 )
                                 
                                 st.session_state["uploader_counter"] += 1
-                                st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dan komentar berhasil dikirim ke Cloudinary untuk kategori **{kategori_cf}** (Nominal: **Rp {jumlah_tf:,.0f}**). Form dan uploader telah dibersihkan untuk sesi baru."
+                                st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dan komentar berhasil dikirim ke GitHub untuk kategori **{kategori_cf}** (Nominal: **Rp {jumlah_tf:,.0f}**). Form dan uploader telah dibersihkan untuk sesi baru."
                                 st.rerun()
                             else:
                                 st.warning("⚠️ Harap lampirkan bukti transfer atau isi komentar terlebih dahulu!")
@@ -3034,7 +3008,7 @@ if menu == "Keuangan & Kotak Hijau":
                                 if ext_file in ['jpg', 'jpeg', 'png', 'webp']:
                                     st.markdown(f'<img src="{b_path}" style="max-width: 250px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 8px;">', unsafe_allow_html=True)
                                 else:
-                                    st.info("📄 Berkas / Dokumen Cloud Terlampir")
+                                    st.info("📄 Berkas / Dokumen GitHub Terlampir")
                                 
                                 st.markdown(f"[📥 Download / Buka Bukti (ID: {r_arsip['id']})]({b_path})", unsafe_allow_html=True)
                             
@@ -3273,12 +3247,12 @@ if menu == "Keuangan & Kotak Hijau":
                             for paragraph in hdr_cells[i].paragraphs:
                                 for run in paragraph.runs:
                                     run.bold = True
-                                    
+                            
                         for _, row in df_t_show.iterrows():
                             row_cells = table.add_row().cells
                             for i, val in enumerate(row):
                                 row_cells[i].text = str(val)
-                                
+                            
                     doc.save(output_word)
                     output_word.seek(0)
                     
