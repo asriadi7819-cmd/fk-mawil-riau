@@ -61,6 +61,45 @@ def upload_file_to_github(uploaded_file, folder_name="uploads_foto"):
         st.error(f"Gagal mengunggah ke GitHub: {e}")
         return None
 
+def backup_db_to_github():
+    """
+    Mengunggah file database SQLite (fk_mawil_riau.db) ke GitHub secara otomatis
+    setiap ada perubahan data, agar data tidak pernah hilang.
+    """
+    if not GITHUB_TOKEN:
+        return
+
+    db_path = "fk_mawil_riau.db"
+    if not os.path.exists(db_path):
+        return
+
+    try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(GITHUB_REPO)
+
+        with open(db_path, "rb") as f:
+            file_bytes = f.read()
+
+        path_in_repo = "fk_mawil_riau.db"
+        commit_message = "Auto-backup database SQLite via Streamlit App"
+
+        try:
+            existing_file = repo.get_contents(path_in_repo)
+            repo.update_file(
+                path=path_in_repo,
+                message="Update database backup",
+                content=file_bytes,
+                sha=existing_file.sha
+            )
+        except Exception:
+            repo.create_file(
+                path=path_in_repo,
+                message=commit_message,
+                content=file_bytes
+            )
+    except Exception as e:
+        print(f"Gagal backup database ke GitHub: {e}")
+
 # Konfigurasi Halaman
 st.set_page_config(
    page_title="FK Mawil Riau",
@@ -386,6 +425,9 @@ def execute_query(query, params=()):
     cursor.execute(query, params)
     conn.commit()
     conn.close()
+    
+    # Auto-backup database ke GitHub setiap ada data baru / perubahan
+    backup_db_to_github()
 
 # --- AMBIL COOKIES DENGAN PENGAMANAN TOTAL (ANTI-LOGOUT / ANTI-CRASH) ---
 try:
@@ -526,17 +568,14 @@ if not st.session_state.logged_in:
                     
                     reg_hp = db_hp
                     
-                    cursor.execute("INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
+                    # Menggunakan execute_query agar otomatis memicu backup ke GitHub
+                    conn.close() # Tutup koneksi manual sebelumnya
+                    execute_query("INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
                                    (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk))
-                    conn.commit()
-                    conn.close()
+                    
                     st.sidebar.success("Pendaftaran berhasil! Silakan pindah ke tab Login.")
                 except sqlite3.OperationalError as e:
-                    conn.close()
                     st.sidebar.error(f"Terjadi kesalahan database: {e}")
-                finally:
-                    if conn:
-                        conn.close()
                 
     st.stop()
 
