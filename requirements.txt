@@ -1,4 +1,6 @@
 streamlit
+cloudinary
+# (tambahkan library lain yang kamu pakai, misal psycopg2-binary jika pakai database)
 pandas
 openpyxl
 python-docx
