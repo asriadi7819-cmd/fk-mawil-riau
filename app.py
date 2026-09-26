@@ -21,10 +21,6 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO", "asriadi7819-cmd/fk-mawil-riau")
 
 def download_db_from_github():
-    """
-    Mengunduh database terbaru dari GitHub saat aplikasi pertama kali dimuat
-    agar data tidak tertimpa versi lama saat server restart/refresh.
-    """
     if not GITHUB_TOKEN:
         return
 
@@ -38,7 +34,6 @@ def download_db_from_github():
     except Exception:
         pass
 
-# Unduh database terbaru dari GitHub sebelum program membaca/membuat database
 download_db_from_github()
 
 def upload_file_to_github(uploaded_file, folder_name="uploads_foto"):
@@ -120,7 +115,6 @@ st.set_page_config(
    layout="wide"
 )
 
-# Inisialisasi Cookie Controller
 cookie_manager = CookieController()
 
 st.markdown("""
@@ -135,7 +129,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Buat folder penyimpanan file otomatis jika belum ada (opsional fallback lokal)
 UPLOAD_DIR = "uploads_foto"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
@@ -173,9 +166,16 @@ def init_db():
             letnan_ijazah TEXT,
             tanggal_ijazah TEXT,
             kontak TEXT,
+            nama_fb TEXT,
             foto TEXT
         )
     ''')
+    
+    # Migrasi aman untuk kolom nama_fb jika tabel sudah ada sebelumnya
+    try:
+        cursor.execute("ALTER TABLE anggota ADD COLUMN nama_fb TEXT")
+    except sqlite3.OperationalError:
+        pass
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS struktur_pengurus (
@@ -438,11 +438,8 @@ def execute_query(query, params=()):
     cursor.execute(query, params)
     conn.commit()
     conn.close()
-    
-    # Auto-backup database ke GitHub setiap ada data baru / perubahan
     backup_db_to_github()
 
-# --- AMBIL COOKIES DENGAN PENGAMANAN TOTAL (ANTI-LOGOUT / ANTI-CRASH) ---
 try:
     cookie_logged_in = cookie_manager.get("fk_logged_in")
     cookie_username = cookie_manager.get("fk_username")
@@ -462,6 +459,13 @@ if "nama_sanfk" not in st.session_state:
 
 role = st.session_state.role
 sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
+
+# Ambil sub wilayah jika user adalah Ketua Sub Mawil
+sub_mawil_aktif_terpilih = "-"
+if role == "Ketua Sub Mawil":
+    df_sub_C = get_data("SELECT sub_wilayah FROM users WHERE username = ?", (st.session_state.username,))
+    if not df_sub_C.empty:
+        sub_mawil_aktif_terpilih = df_sub_C.iloc[0]['sub_wilayah']
 
 # --- SIDEBAR: FORM LOGIN, REGISTER ATAU MENU UTAMA ---
 st.sidebar.title("🕌 FK MAWIL RIAU")
@@ -2615,7 +2619,7 @@ elif menu == "Layanan Santunan & Kontak":
     """, unsafe_allow_html=True)
 
 # --- 2. MANAJEMEN SANFK & KTA ---
-elif menu == "Manajemen SanFK & KTA":
+if menu == "Manajemen SanFK & KTA":
     st.title("👥 Manajemen Data SanFK, Ijazah Dzikir, & KTA Digital")
     
     # --- PENGATURAN TAB BERDASARKAN ROLE ---
@@ -2633,9 +2637,9 @@ elif menu == "Manajemen SanFK & KTA":
             filter_wilayah = st.selectbox("Filter Berdasarkan Sub Mawil", ["Semua"] + DAFTAR_KAB_KOTA)
             
         if filter_wilayah != "Semua":
-            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak' FROM anggota WHERE sub_mawil = ?", (filter_wilayah,))
+            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak', nama_fb as 'Nama FB' FROM anggota WHERE sub_mawil = ?", (filter_wilayah,))
         else:
-            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak' FROM anggota")
+            df_tampil = get_data("SELECT nama as 'Nama', sub_mawil as 'Sub Mawil', jenis_kelamin as 'Jenis Kelamin', alamat as 'Alamat', status as 'Status', letnan_ijazah as 'Letnan Ijazah', tanggal_ijazah as 'Tanggal Ijazah', kontak as 'Kontak', nama_fb as 'Nama FB' FROM anggota")
         
         if df_tampil.empty:
             st.info("Belum ada data SanFK yang terdaftar di database.")
@@ -2665,11 +2669,11 @@ elif menu == "Manajemen SanFK & KTA":
                 letnan = st.text_input("Nama Letnan / Mursyid Pemberi Ijazah Dzikir", key="t_letnan")
                 tgl_ijazah = st.date_input("Tanggal Perolehan Ijazah Dzikir", value=datetime.today(), key="t_tgl")
                 kontak = st.text_input("Nomor Kontak / WhatsApp", key="t_kontak")
+                nama_fb = st.text_input("Nama Akun Facebook (Nama FB)", key="t_namafb")
                 
                 st.markdown("---")
                 st.markdown("##### 📷 Pas Foto / Dokumen SanFK *(Hanya Format Gambar/PDF, Tanpa Video)*")
                 
-                # Pilihan 2 Metode Input File
                 metode_foto_sanfk = st.radio("Pilih Cara Input File:", ["Unggah Berkas (PDF, Foto, dll)", "Gunakan Kamera Langsung"], horizontal=True, key="radio_sanfk")
                 
                 foto_file = None
@@ -2687,14 +2691,12 @@ elif menu == "Manajemen SanFK & KTA":
                     if nama:
                         final_foto_val = ""
                         
-                        # Upload ke GitHub jika menggunakan Unggah Berkas (disatukan ke uploads_foto)
                         if metode_foto_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file is not None:
                             with st.spinner("Mengunggah berkas ke GitHub Repository (uploads_foto)..."):
                                 foto_url = upload_file_to_github(foto_file, folder_name="uploads_foto")
                                 if foto_url:
                                     final_foto_val = f"{foto_url}|{akses_sanfk}"
                         
-                        # Upload ke GitHub jika menggunakan Kamera Langsung (disatukan ke uploads_foto)
                         elif metode_foto_sanfk == "Gunakan Kamera Langsung" and cam_file is not None:
                             with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
                                 cam_url = upload_file_to_github(cam_file, folder_name="uploads_foto")
@@ -2702,8 +2704,8 @@ elif menu == "Manajemen SanFK & KTA":
                                     final_foto_val = f"{cam_url}|{akses_sanfk}"
                         
                         execute_query(
-                            "INSERT INTO anggota (nama, sub_mawil, jenis_kelamin, alamat, status, letnan_ijazah, tanggal_ijazah, kontak, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            (nama, sub_mawil, jenis_kelamin, alamat, status, letnan, str(tgl_ijazah), kontak, final_foto_val)
+                            "INSERT INTO anggota (nama, sub_mawil, jenis_kelamin, alamat, status, letnan_ijazah, tanggal_ijazah, kontak, nama_fb, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (nama, sub_mawil, jenis_kelamin, alamat, status, letnan, str(tgl_ijazah), kontak, nama_fb, final_foto_val)
                         )
                         
                         st.success(f"Data SanFK {nama} berhasil ditambahkan!")
@@ -2754,6 +2756,7 @@ elif menu == "Manajemen SanFK & KTA":
                     tgl_ijazah_e = st.date_input("Tanggal Perolehan Ijazah Dzikir", value=tgl_parsed, key=f"e_tgl_{id_terpilih}")
                     
                     kontak_e = st.text_input("Nomor Kontak / WhatsApp", value=data_terpilih['kontak'] if data_terpilih['kontak'] else "", key=f"e_kon_{id_terpilih}")
+                    nama_fb_e = st.text_input("Nama Akun Facebook (Nama FB)", value=data_terpilih.get('nama_fb', '') if pd.notna(data_terpilih.get('nama_fb')) else "", key=f"e_fb_{id_terpilih}")
                     
                     st.markdown("🔒 Hak Akses Berkas: **Private (Otomatis)**")
                     edit_akses_sanfk = "Private"
@@ -2775,7 +2778,6 @@ elif menu == "Manajemen SanFK & KTA":
                         if st.button("💾 Simpan Perubahan Data", key=f"btn_up_data_{id_terpilih}"):
                             foto_path_e = file_foto_lama
                             
-                            # Disatukan ke folder uploads_foto
                             if metode_ganti_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file_e is not None:
                                 with st.spinner("Mengunggah file baru ke GitHub Repository (uploads_foto)..."):
                                     new_url = upload_file_to_github(foto_file_e, folder_name="uploads_foto")
@@ -2792,8 +2794,8 @@ elif menu == "Manajemen SanFK & KTA":
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
                             
                             execute_query(
-                                "UPDATE anggota SET nama = ?, sub_mawil = ?, jenis_kelamin = ?, alamat = ?, status = ?, letnan_ijazah = ?, tanggal_ijazah = ?, kontak = ?, foto = ? WHERE id = ?",
-                                (nama_e, sub_mawil_e, jenis_kelamin_e, alamat_e, status_e, letnan_e, str(tgl_ijazah_e), kontak_e, final_foto_e_val, id_terpilih)
+                                "UPDATE anggota SET nama = ?, sub_mawil = ?, jenis_kelamin = ?, alamat = ?, status = ?, letnan_ijazah = ?, tanggal_ijazah = ?, kontak = ?, nama_fb = ?, foto = ? WHERE id = ?",
+                                (nama_e, sub_mawil_e, jenis_kelamin_e, alamat_e, status_e, letnan_e, str(tgl_ijazah_e), kontak_e, nama_fb_e, final_foto_e_val, id_terpilih)
                             )
                             
                             st.success(f"Data SanFK {nama_e} berhasil diperbarui di GitHub!")
@@ -2819,7 +2821,6 @@ elif menu == "Manajemen SanFK & KTA":
             else:
                 foto_path, akses_kta = foto_full, "Public"
                 
-            # Jika berupa URL GitHub / HTTP, langsung render tag img menggunakan URL tersebut
             if foto_path and (foto_path.startswith("http://") or foto_path.startswith("https://")):
                 img_html = f'<img src="{foto_path}" style="width: 85px; height: 105px; object-fit: cover; border-radius: 4px; border: 1px solid #0E6655;">'
             else:
@@ -2829,6 +2830,8 @@ elif menu == "Manajemen SanFK & KTA":
                 else:
                     img_html = '<div style="font-size: 10px; color: #555; padding: 25px 0; text-align: center;">Private / No File</div>'
             
+            val_nama_fb = data_a.get('nama_fb', '-') if pd.notna(data_a.get('nama_fb')) and data_a.get('nama_fb') else '-'
+
             st.markdown(f"""
             <div style="border: 2px solid #0E6655; border-radius: 10px; padding: 20px; background-color: #E8F8F5; color: #0e3d30; max-width: 500px;">
                 <h3 style="margin: 0; text-align: center;">FK MAWIL RIAU</h3>
@@ -2842,12 +2845,13 @@ elif menu == "Manajemen SanFK & KTA":
                             </div>
                         </td>
                         <td style="width: 65%; vertical-align: top;">
-                            <p style="margin: 4px 0;"><b>Nama:</b> {data_a['nama']}</p>
-                            <p style="margin: 4px 0;"><b>Sub Mawil:</b> {data_a['sub_mawil']}</p>
-                            <p style="margin: 4px 0;"><b>Gender:</b> {data_a.get('jenis_kelamin', '-')}</p>
-                            <p style="margin: 4px 0;"><b>Status:</b> {data_a['status']}</p>
-                            <p style="margin: 4px 0;"><b>No. HP:</b> {data_a.get('kontak', '-')}</p>
-                            <p style="margin: 4px 0;"><b>Ijazah Dzikir:</b><br>{data_a['letnan_ijazah']}</p>
+                            <p style="margin: 3px 0;"><b>Nama:</b> {data_a['nama']}</p>
+                            <p style="margin: 3px 0;"><b>Sub Mawil:</b> {data_a['sub_mawil']}</p>
+                            <p style="margin: 3px 0;"><b>Gender:</b> {data_a.get('jenis_kelamin', '-')}</p>
+                            <p style="margin: 3px 0;"><b>Status:</b> {data_a['status']}</p>
+                            <p style="margin: 3px 0;"><b>No. HP:</b> {data_a.get('kontak', '-')}</p>
+                            <p style="margin: 3px 0;"><b>Nama FB:</b> {val_nama_fb}</p>
+                            <p style="margin: 3px 0;"><b>Ijazah Dzikir:</b> {data_a['letnan_ijazah']}</p>
                         </td>
                     </tr>
                 </table>
@@ -2857,7 +2861,11 @@ elif menu == "Manajemen SanFK & KTA":
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            
+
+df_anggota_all = get_data("SELECT * FROM anggota")
+df_keuangan_all = get_data("SELECT * FROM keuangan")
+df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
+
 # --- 5. KEUANGAN & KOTAK HIJAU ---
 elif menu == "Keuangan & Kotak Hijau":
     # Batasi akses hanya untuk SanFK dan Bendahara Mawil
