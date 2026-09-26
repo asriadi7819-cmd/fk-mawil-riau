@@ -2866,8 +2866,8 @@ df_anggota_all = get_data("SELECT * FROM anggota")
 df_keuangan_all = get_data("SELECT * FROM keuangan")
 df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
 
-# --- 5. KEUANGAN & KOTAK HIJAU ---
-elif menu == "Keuangan & Kotak Hijau":
+--- 5. KEUANGAN & KOTAK HIJAU ---
+if menu == "Keuangan & Kotak Hijau":
     if role not in ["SanFK", "Bendahara Mawil"]:
         st.error("⛔ Akses Ditolak!")
         st.warning("Menu 'Keuangan & Kotak Hijau' khusus diperuntukkan bagi role **SanFK** dan **Bendahara Mawil**.")
@@ -3060,7 +3060,7 @@ elif menu == "Keuangan & Kotak Hijau":
                 
                 df_rek_list = get_data("SELECT * FROM rekening_tujuan")
                 if df_rek_list.empty:
-                    st.info("Belum ada data rekening terdaftar.")
+                    st.info("💡 Belum ada data rekening terdaftar. Silakan tambahkan rekening melalui form di atas terlebih dahulu agar menu Ubah & Hapus aktif.")
                 else:
                     rek_dict = {f"ID [{r['id']}] - {r['nama_bank']} ({r['nomor_rekening']})": r['id'] for _, r in df_rek_list.iterrows()}
                     pilih_rek_label = st.selectbox("Pilih Rekening yang Ingin Dikelola:", list(rek_dict.keys()), key="select_rek_edit_del")
