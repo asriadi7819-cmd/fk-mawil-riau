@@ -21,6 +21,10 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO", "asriadi7819-cmd/fk-mawil-riau")
 
 def download_db_from_github():
+    """
+    Mengunduh database terbaru dari GitHub saat aplikasi pertama kali dimuat
+    agar data tidak tertimpa versi lama saat server restart/refresh.
+    """
     if not GITHUB_TOKEN:
         return
 
@@ -32,8 +36,10 @@ def download_db_from_github():
         with open("fk_mawil_riau.db", "wb") as f:
             f.write(file_content.decoded_content)
     except Exception:
+        # Jika file belum ada di GitHub, biarkan membuat baru secara lokal
         pass
 
+# Unduh database terbaru dari GitHub sebelum program membaca/membuat database
 download_db_from_github()
 
 def upload_file_to_github(uploaded_file, folder_name="uploads_foto"):
@@ -115,6 +121,7 @@ st.set_page_config(
    layout="wide"
 )
 
+# Inisialisasi Cookie Controller
 cookie_manager = CookieController()
 
 st.markdown("""
@@ -129,6 +136,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Buat folder penyimpanan file otomatis jika belum ada (opsional fallback lokal)
 UPLOAD_DIR = "uploads_foto"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
@@ -166,15 +174,9 @@ def init_db():
             letnan_ijazah TEXT,
             tanggal_ijazah TEXT,
             kontak TEXT,
-            nama_fb TEXT,
             foto TEXT
         )
     ''')
-    
-    try:
-        cursor.execute("ALTER TABLE anggota ADD COLUMN nama_fb TEXT")
-    except sqlite3.OperationalError:
-        pass
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS struktur_pengurus (
@@ -432,23 +434,16 @@ def get_data(query, params=()):
     return df
 
 def execute_query(query, params=()):
-    # 1. Simpan/Commit secara aman ke database lokal SQLite terlebih dahulu
-    try:
-        conn = sqlite3.connect('fk_mawil_riau.db')
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        st.error(f"Gagal menyimpan ke database lokal: {e}")
-        return
+    conn = sqlite3.connect('fk_mawil_riau.db')
+    cursor = conn.cursor()
+    cursor.execute(query, params)
+    conn.commit()
+    conn.close()
+    
+    # Auto-backup database ke GitHub setiap ada data baru / perubahan
+    backup_db_to_github()
 
-    # 2. Backup online ke GitHub dipisah agar tidak memblokir simpan lokal jika koneksi/token terganggu
-    try:
-        backup_db_to_github()
-    except Exception as e:
-        print(f"Info: Backup GitHub dilewati sementara: {e}")
-
+# --- AMBIL COOKIES DENGAN PENGAMANAN TOTAL (ANTI-LOGOUT / ANTI-CRASH) ---
 try:
     cookie_logged_in = cookie_manager.get("fk_logged_in")
     cookie_username = cookie_manager.get("fk_username")
@@ -468,12 +463,6 @@ if "nama_sanfk" not in st.session_state:
 
 role = st.session_state.role
 sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
-
-sub_mawil_aktif_terpilih = "-"
-if role == "Ketua Sub Mawil":
-    df_sub_C = get_data("SELECT sub_wilayah FROM users WHERE username = ?", (st.session_state.username,))
-    if not df_sub_C.empty:
-        sub_mawil_aktif_terpilih = df_sub_C.iloc[0]['sub_wilayah']
 
 # --- SIDEBAR: FORM LOGIN, REGISTER ATAU MENU UTAMA ---
 st.sidebar.title("🕌 FK MAWIL RIAU")
@@ -549,50 +538,58 @@ if not st.session_state.logged_in:
             if not reg_username or not reg_password:
                 st.sidebar.warning("Username dan Password wajib diisi!")
             else:
-                gagal_daftar = False
-                
-                df_cek_usr = get_data("SELECT COUNT(*) as jml FROM users WHERE username = ?", (reg_username.strip(),))
-                if not df_cek_usr.empty and df_cek_usr.iloc[0]['jml'] > 0:
-                    st.sidebar.error(f"Gagal! Username '{reg_username.strip()}' sudah digunakan.")
-                    gagal_daftar = True
-                
-                if not gagal_daftar and reg_role in pengurus_inti_list:
-                    df_cek_role = get_data("SELECT COUNT(*) as jml FROM users WHERE role = ?", (reg_role,))
-                    if not df_cek_role.empty and df_cek_role.iloc[0]['jml'] > 0:
-                        st.sidebar.error(f"Gagal! Role **{reg_role}** sudah terdaftar dalam sistem dan hanya boleh ada 1 orang.")
-                        gagal_daftar = True
-                
-                if not gagal_daftar and reg_role == "Ketua Sub Mawil":
-                    df_cek_sub = get_data("SELECT COUNT(*) as jml FROM users WHERE role = 'Ketua Sub Mawil' AND sub_wilayah = ?", (reg_sub_wilayah,))
-                    if not df_cek_sub.empty and df_cek_sub.iloc[0]['jml'] > 0:
-                        st.sidebar.error(f"Gagal! Ketua Sub Mawil untuk wilayah **{reg_sub_wilayah}** sudah terdaftar.")
-                        gagal_daftar = True
+                conn = sqlite3.connect('fk_mawil_riau.db')
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM users WHERE username = ?", (reg_username.strip(),))
+                    if cursor.fetchone()[0] > 0:
+                        st.sidebar.error(f"Gagal! Username '{reg_username.strip()}' sudah digunakan.")
+                        conn.close()
+                        st.stop()
+                    
+                    if reg_role in pengurus_inti_list:
+                        cursor.execute("SELECT COUNT(*) FROM users WHERE role = ?", (reg_role,))
+                        if cursor.fetchone()[0] > 0:
+                            st.sidebar.error(f"Gagal! Role **{reg_role}** sudah terdaftar dalam sistem dan hanya boleh ada 1 orang.")
+                            conn.close()
+                            st.stop()
+                    
+                    if reg_role == "Ketua Sub Mawil":
+                        cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Ketua Sub Mawil' AND sub_wilayah = ?", (reg_sub_wilayah,))
+                        if cursor.fetchone()[0] > 0:
+                            st.sidebar.error(f"Gagal! Ketua Sub Mawil untuk wilayah **{reg_sub_wilayah}** sudah terdaftar dan hanya boleh ada 1 orang.")
+                            conn.close()
+                            st.stop()
 
-                if not gagal_daftar and reg_role in pengurus_inti_list:
-                    df_cap = get_data("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ? AND nama_sanfk = ?", (reg_role, f"ROLE_{reg_role}"))
-                    saved_captcha = df_cap.iloc[0]['kode_captcha'] if not df_cap.empty else ""
+                    if reg_role in pengurus_inti_list:
+                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ? AND nama_sanfk = ?", (reg_role, f"ROLE_{reg_role}"))
+                        res_cap = cursor.fetchone()
+                        saved_captcha = res_cap[0] if res_cap else ""
+                        
+                        if reg_role_captcha_input.strip() != saved_captcha:
+                            st.sidebar.error(f"Kode Captcha untuk role **{reg_role}** tidak valid!")
+                            conn.close()
+                            st.stop()
+                    elif reg_role == "SanFK":
+                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE nama_sanfk = ?", (selected_nama_sanfk,))
+                        res_cap_sanfk = cursor.fetchone()
+                        saved_captcha_sanfk = res_cap_sanfk[0] if res_cap_sanfk else ""
+                        
+                        if saved_captcha_sanfk and reg_role_captcha_input.strip() != saved_captcha_sanfk:
+                            st.sidebar.error("Kode Verifikasi / Captcha SanFK tidak valid!")
+                            conn.close()
+                            st.stop()
                     
-                    if reg_role_captcha_input.strip() != saved_captcha:
-                        st.sidebar.error(f"Kode Captcha untuk role **{reg_role}** tidak valid!")
-                        gagal_daftar = True
-                elif not gagal_daftar and reg_role == "SanFK":
-                    df_cap_s = get_data("SELECT kode_captcha FROM pengaturan_captcha WHERE nama_sanfk = ?", (selected_nama_sanfk,))
-                    saved_captcha_sanfk = df_cap_s.iloc[0]['kode_captcha'] if not df_cap_s.empty else ""
+                    reg_hp = db_hp
                     
-                    if saved_captcha_sanfk and reg_role_captcha_input.strip() != saved_captcha_sanfk:
-                        st.sidebar.error("Kode Verifikasi / Captcha SanFK tidak valid!")
-                        gagal_daftar = True
-                
-                if not gagal_daftar:
-                    try:
-                        reg_hp = db_hp
-                        execute_query(
-                            "INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
-                            (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk)
-                        )
-                        st.sidebar.success("🎉 Pendaftaran berhasil! Silakan beralih ke tab Login di atas.")
-                    except Exception as e:
-                        st.sidebar.error(f"Terjadi kesalahan database: {e}")
+                    # Menggunakan execute_query agar otomatis memicu backup ke GitHub
+                    conn.close() # Tutup koneksi manual sebelumnya
+                    execute_query("INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
+                                   (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk))
+                    
+                    st.sidebar.success("Pendaftaran berhasil! Silakan pindah ke tab Login.")
+                except sqlite3.OperationalError as e:
+                    st.sidebar.error(f"Terjadi kesalahan database: {e}")
                 
     st.stop()
 
@@ -654,6 +651,7 @@ if not list_menu:
     list_menu = ["Beranda & Pengumuman"]
 
 menu = st.sidebar.radio("Navigasi Menu", list_menu)
+
 # --- HALAMAN KHUSUS SUPERADMIN: MANAJEMEN AKUN & ROLE ---
 if menu == "Manajemen Akun & Role" and role == "Superadmin":
     st.title("🛡️ Manajemen Akun & Role (Superadmin)")
