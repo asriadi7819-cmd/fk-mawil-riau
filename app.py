@@ -387,23 +387,21 @@ def execute_query(query, params=()):
     conn.commit()
     conn.close()
 
-# --- AMBIL COOKIES ---
+# --- AMBIL COOKIES DENGAN PENGAMANAN ---
 cookie_logged_in = cookie_manager.get("fk_logged_in")
 cookie_username = cookie_manager.get("fk_username")
 cookie_role = cookie_manager.get("fk_role")
 cookie_nama_sanfk = cookie_manager.get("fk_nama_sanfk")
 
+# Pastikan nilai cookie aman dari None agar tidak error saat validasi session
 if "logged_in" not in st.session_state:
-    st.session_state.logged_in = True if cookie_logged_in == "True" else False
+    st.session_state.logged_in = True if str(cookie_logged_in) == "True" else False
 if "username" not in st.session_state:
-    st.session_state.username = cookie_username if cookie_username else ""
+    st.session_state.username = str(cookie_username) if cookie_username else ""
 if "role" not in st.session_state:
-    st.session_state.role = cookie_role if cookie_role else ""
+    st.session_state.role = str(cookie_role) if cookie_role else ""
 if "nama_sanfk" not in st.session_state:
-    st.session_state.nama_sanfk = cookie_nama_sanfk if cookie_nama_sanfk else ""
-
-if "gen_captcha_code" not in st.session_state:
-    st.session_state.gen_captcha_code = f"mwRIAU-{random.randint(1000, 9999)}"
+    st.session_state.nama_sanfk = str(cookie_nama_sanfk) if cookie_nama_sanfk else ""
 
 role = st.session_state.role
 
