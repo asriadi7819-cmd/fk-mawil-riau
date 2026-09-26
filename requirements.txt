@@ -1,6 +1,8 @@
 streamlit
 pandas
+sqlite3
 openpyxl
 python-docx
 PyGithub
+streamlit-cookies-controller
 requests
