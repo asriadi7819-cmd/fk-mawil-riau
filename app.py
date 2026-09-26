@@ -3445,4 +3445,4 @@ elif menu == "Keuangan & Kotak Hijau":
                             execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_all_pilih,))
                             st.success(f"🗑️ Transaksi ID [{id_all_pilih}] berhasil dihapus! Form dibersihkan.")
                             st.rerun()
-
+    
