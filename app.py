@@ -2867,8 +2867,8 @@ df_keuangan_all = get_data("SELECT * FROM keuangan")
 df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
 
 # --- 5. KEUANGAN & KOTAK HIJAU ---
-elif menu == "Keuangan & Kotak Hijau":
-    # Batasi akses hanya untuk SanFK dan Bendahara Mawil
+elif menu == "Keuangan&KotakHijau":
+# Batasi akses hanya untuk SanFK dan Bendahara Mawil
     if role not in ["SanFK", "Bendahara Mawil"]:
         st.error("⛔ Akses Ditolak!")
         st.warning("Menu 'Keuangan & Kotak Hijau' khusus diperuntukkan bagi role **SanFK** dan **Bendahara Mawil**. Ketua Mawil, Sekretaris Mawil, Admin Mawil, dan Ketua Sub Mawil tidak memiliki akses ke menu ini.")
