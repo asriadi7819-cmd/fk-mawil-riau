@@ -763,7 +763,7 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
         st.subheader("🔑 Pengaturan Kode Verifikasi / Captcha per SanFK & Role")
         st.markdown("Atur kode verifikasi/captcha unik untuk masing-masing anggota SanFK secara individual atau berdasarkan role pengurus.")
         
-        # Inisialisasi session_state agar tidak terjadi error AttributeError
+        # --- INISIALISASI SESSION STATE AMAN UNTUK CAPTCHA ---
         if "gen_captcha_code" not in st.session_state:
             st.session_state.gen_captcha_code = f"SanFK-{random.randint(1000, 9999)}"
         
