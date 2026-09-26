@@ -874,16 +874,18 @@ if menu == "Beranda & Pengumuman":
                     if jdl:
                         path_list = []
                         if foto_pengumuman_files:
-                            with st.spinner("Mengunggah file ke GitHub Repository..."):
+                            with st.spinner("Mengunggah file ke GitHub Repository (uploads_foto)..."):
                                 for f_item in foto_pengumuman_files:
-                                    f_url = upload_file_to_github(f_item, folder_name="uploads_pengumuman")
+                                    # Disatukan ke folder uploads_foto
+                                    f_url = upload_file_to_github(f_item, folder_name="uploads_foto")
                                     if f_url:
                                         akses_dipilih = file_access_settings.get(f_item.name, "Private")
                                         path_list.append(f"{f_url}|{akses_dipilih}")
                         
                         if cam_pengumuman is not None:
-                            with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
-                                cam_url = upload_file_to_github(cam_pengumuman, folder_name="uploads_pengumuman")
+                            with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
+                                # Disatukan ke folder uploads_foto
+                                cam_url = upload_file_to_github(cam_pengumuman, folder_name="uploads_foto")
                                 if cam_url:
                                     path_list.append(f"{cam_url}|{cam_akses}")
                         
@@ -1009,19 +1011,21 @@ if menu == "Beranda & Pengumuman":
                                 existing_paths = list_fp
                                 
                                 if edit_foto_files:
-                                    with st.spinner("Mengunggah file baru ke GitHub Repository..."):
+                                    with st.spinner("Mengunggah file baru ke GitHub Repository (uploads_foto)..."):
                                         for ef_item in edit_foto_files:
-                                            ef_url = upload_file_to_github(ef_item, folder_name="uploads_pengumuman")
+                                            # Disatukan ke folder uploads_foto
+                                            ef_url = upload_file_to_github(ef_item, folder_name="uploads_foto")
                                             if ef_url:
                                                 akses_ef = edit_file_access_settings.get(ef_item.name, "Private")
                                                 existing_paths.append(f"{ef_url}|{akses_ef}")
-                                    
+                                
                                 if edit_cam_file is not None:
                                     with st.spinner("Mengunggah foto kamera baru..."):
-                                        ecam_url = upload_file_to_github(edit_cam_file, folder_name="uploads_pengumuman")
+                                        # Disatukan ke folder uploads_foto
+                                        ecam_url = upload_file_to_github(edit_cam_file, folder_name="uploads_foto")
                                         if ecam_url:
                                             existing_paths.append(f"{ecam_url}|{edit_cam_akses}")
-                                    
+                                
                                 foto_p_path_e = ",".join(existing_paths)
                                 execute_query(
                                     "UPDATE pengumuman SET judul = ?, isi = ?, foto_pengumuman = ? WHERE id = ?",
@@ -1467,16 +1471,18 @@ elif menu == "Galeri Resmi (Admin)":
                     if judul_kegiatan and (foto_resmi_files or cam_resmi):
                         path_list_r = []
                         if foto_resmi_files:
-                            with st.spinner("Mengunggah file ke GitHub Repository..."):
+                            with st.spinner("Mengunggah file ke GitHub Repository (uploads_foto)..."):
                                 for fr_item in foto_resmi_files:
-                                    fr_url = upload_file_to_github(fr_item, folder_name="uploads_galeri_resmi")
+                                    # Disatukan ke folder uploads_foto
+                                    fr_url = upload_file_to_github(fr_item, folder_name="uploads_foto")
                                     if fr_url:
                                         akses_dipilih_r = file_access_settings_r.get(fr_item.name, "Private")
                                         path_list_r.append(f"{fr_url}|{akses_dipilih_r}")
                         
                         if cam_resmi is not None:
-                            with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
-                                cam_url_r = upload_file_to_github(cam_resmi, folder_name="uploads_galeri_resmi")
+                            with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
+                                # Disatukan ke folder uploads_foto
+                                cam_url_r = upload_file_to_github(cam_resmi, folder_name="uploads_foto")
                                 if cam_url_r:
                                     path_list_r.append(f"{cam_url_r}|{cam_akses_r}")
                         
@@ -1589,19 +1595,21 @@ elif menu == "Galeri Resmi (Admin)":
                             existing_paths_r = list_fr
                             
                             if edit_foto_files_r:
-                                with st.spinner("Mengunggah file baru ke GitHub Repository..."):
+                                with st.spinner("Mengunggah file baru ke GitHub Repository (uploads_foto)..."):
                                     for efr_item in edit_foto_files_r:
-                                        efr_url = upload_file_to_github(efr_item, folder_name="uploads_galeri_resmi")
+                                        # Disatukan ke folder uploads_foto
+                                        efr_url = upload_file_to_github(efr_item, folder_name="uploads_foto")
                                         if efr_url:
                                             akses_efr = edit_file_access_settings_r.get(efr_item.name, "Private")
                                             existing_paths_r.append(f"{efr_url}|{akses_efr}")
-                                
+                            
                             if edit_cam_file_r is not None:
                                 with st.spinner("Mengunggah foto kamera baru..."):
-                                    ecam_url_r = upload_file_to_github(edit_cam_file_r, folder_name="uploads_galeri_resmi")
+                                    # Disatukan ke folder uploads_foto
+                                    ecam_url_r = upload_file_to_github(edit_cam_file_r, folder_name="uploads_foto")
                                     if ecam_url_r:
                                         existing_paths_r.append(f"{ecam_url_r}|{edit_cam_akses_r}")
-                                
+                            
                             foto_r_path_e = ",".join(existing_paths_r)
                             execute_query(
                                 "UPDATE galeri_resmi SET judul = ?, foto_resmi = ? WHERE id = ?",
@@ -1687,14 +1695,7 @@ elif menu == "Galeri Resmi (Admin)":
                                     st.rerun()
 
                         st.divider()
-
-import io
-import openpyxl
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
-
+                        
 # --- 3. AGENDA & RUTINAN DZIKIR ---
 if menu == "Agenda & Rutinan Dzikir":
     st.title("📅 Agenda & Absensi Rutinan Dzikir Jahar")
@@ -2326,16 +2327,18 @@ elif menu == "Galeri & Feed Umum":
                                 if penulis_terpilih and (konten or foto_galeri_files or cam_galeri):
                                     path_list_g = []
                                     if foto_galeri_files:
-                                        with st.spinner("Mengunggah file ke GitHub Repository..."):
+                                        with st.spinner("Mengunggah file ke GitHub Repository (uploads_foto)..."):
                                             for fg_item in foto_galeri_files:
-                                                fg_url = upload_file_to_github(fg_item, folder_name="uploads_galeri_umum")
+                                                # Disatukan ke folder uploads_foto
+                                                fg_url = upload_file_to_github(fg_item, folder_name="uploads_foto")
                                                 if fg_url:
                                                     akses_dipilih_g = file_access_settings_g.get(fg_item.name, "Private")
                                                     path_list_g.append(f"{fg_url}|{akses_dipilih_g}")
                                     
                                     if cam_galeri is not None:
-                                        with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
-                                            cgal_url = upload_file_to_github(cam_galeri, folder_name="uploads_galeri_umum")
+                                        with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
+                                            # Disatukan ke folder uploads_foto
+                                            cgal_url = upload_file_to_github(cam_galeri, folder_name="uploads_foto")
                                             if cgal_url:
                                                 path_list_g.append(f"{cgal_url}|{cam_akses_g}")
                                     
@@ -2450,19 +2453,21 @@ elif menu == "Galeri & Feed Umum":
                                 existing_paths_g = list_fg
                                 
                                 if edit_foto_files_g:
-                                    with st.spinner("Mengunggah file baru ke GitHub Repository..."):
+                                    with st.spinner("Mengunggah file baru ke GitHub Repository (uploads_foto)..."):
                                         for efg_item in edit_foto_files_g:
-                                            efg_url = upload_file_to_github(efg_item, folder_name="uploads_galeri_umum")
+                                            # Disatukan ke folder uploads_foto
+                                            efg_url = upload_file_to_github(efg_item, folder_name="uploads_foto")
                                             if efg_url:
                                                 akses_efg = edit_file_access_settings_g.get(efg_item.name, "Private")
                                                 existing_paths_g.append(f"{efg_url}|{akses_efg}")
-                                    
+                                
                                 if edit_cam_file_g is not None:
                                     with st.spinner("Mengunggah foto kamera baru..."):
-                                        ecam_url_g = upload_file_to_github(edit_cam_file_g, folder_name="uploads_galeri_umum")
+                                        # Disatukan ke folder uploads_foto
+                                        ecam_url_g = upload_file_to_github(edit_cam_file_g, folder_name="uploads_foto")
                                         if ecam_url_g:
                                             existing_paths_g.append(f"{ecam_url_g}|{edit_cam_akses_g}")
-                                    
+                                
                                 foto_g_path_e = ",".join(existing_paths_g)
                                 execute_query(
                                     "UPDATE galeri_umum SET konten = ?, foto_galeri = ? WHERE id = ?",
@@ -2630,17 +2635,17 @@ elif menu == "Manajemen SanFK & KTA":
                     if nama:
                         final_foto_val = ""
                         
-                        # Upload ke GitHub jika menggunakan Unggah Berkas
+                        # Upload ke GitHub jika menggunakan Unggah Berkas (disatukan ke uploads_foto)
                         if metode_foto_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file is not None:
-                            with st.spinner("Mengunggah berkas ke GitHub Repository..."):
-                                foto_url = upload_file_to_github(foto_file, folder_name="uploads_anggota")
+                            with st.spinner("Mengunggah berkas ke GitHub Repository (uploads_foto)..."):
+                                foto_url = upload_file_to_github(foto_file, folder_name="uploads_foto")
                                 if foto_url:
                                     final_foto_val = f"{foto_url}|{akses_sanfk}"
                         
-                        # Upload ke GitHub jika menggunakan Kamera Langsung
+                        # Upload ke GitHub jika menggunakan Kamera Langsung (disatukan ke uploads_foto)
                         elif metode_foto_sanfk == "Gunakan Kamera Langsung" and cam_file is not None:
-                            with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
-                                cam_url = upload_file_to_github(cam_file, folder_name="uploads_anggota")
+                            with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
+                                cam_url = upload_file_to_github(cam_file, folder_name="uploads_foto")
                                 if cam_url:
                                     final_foto_val = f"{cam_url}|{akses_sanfk}"
                         
@@ -2718,15 +2723,16 @@ elif menu == "Manajemen SanFK & KTA":
                         if st.button("💾 Simpan Perubahan Data", key=f"btn_up_data_{id_terpilih}"):
                             foto_path_e = file_foto_lama
                             
+                            # Disatukan ke folder uploads_foto
                             if metode_ganti_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file_e is not None:
-                                with st.spinner("Mengunggah file baru ke GitHub Repository..."):
-                                    new_url = upload_file_to_github(foto_file_e, folder_name="uploads_anggota")
+                                with st.spinner("Mengunggah file baru ke GitHub Repository (uploads_foto)..."):
+                                    new_url = upload_file_to_github(foto_file_e, folder_name="uploads_foto")
                                     if new_url:
                                         foto_path_e = new_url
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
                             elif metode_ganti_sanfk == "Gunakan Kamera Langsung" and cam_file_e is not None:
-                                with st.spinner("Mengunggah foto kamera baru..."):
-                                    new_cam_url = upload_file_to_github(cam_file_e, folder_name="uploads_anggota")
+                                with st.spinner("Mengunggah foto kamera baru (uploads_foto)..."):
+                                    new_cam_url = upload_file_to_github(cam_file_e, folder_name="uploads_foto")
                                     if new_cam_url:
                                         foto_path_e = new_cam_url
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
@@ -2842,7 +2848,7 @@ elif menu == "Keuangan & Kotak Hijau":
             tab_f6 = None
         else:
             tab_f1, tab_f3, tab_f4 = st.tabs([
-                "💳 Info Rekening & Unggah", 
+                "💳 Info Rekening & Unggah",  
                 "📁 Arsip & Koreksi Bukti",
                 "📊 Cashflow & Kategori"
             ])
@@ -2920,7 +2926,7 @@ elif menu == "Keuangan & Kotak Hijau":
                                     "Kotak Hijau", 
                                     "Dana dari Pusat (Baksos/Santunan)",
                                     "Lain-lain"
-                                ],
+                                ], 
                                 key="select_kategori_bendahara_f1_live"
                             )
                             jumlah_tf = st.number_input("Nominal Transaksi (Rp)", min_value=0.0, step=10000.0, key="num_nominal_bendahara_f1_live")
@@ -2932,11 +2938,13 @@ elif menu == "Keuangan & Kotak Hijau":
                         if btn_kirim_dok:
                             path_bukti = ""
                             if up_bukti_file is not None:
-                                with st.spinner("Mengunggah bukti transfer ke GitHub Repository..."):
-                                    path_bukti = upload_file_to_github(up_bukti_file, folder_name="uploads_cashflow")
+                                with st.spinner("Mengunggah bukti transfer ke GitHub Repository (uploads_foto)..."):
+                                    # Disatukan ke folder uploads_foto
+                                    path_bukti = upload_file_to_github(up_bukti_file, folder_name="uploads_foto")
                             elif cam_bukti is not None:
-                                with st.spinner("Mengunggah foto kamera ke GitHub Repository..."):
-                                    path_bukti = upload_file_to_github(cam_bukti, folder_name="uploads_cashflow")
+                                with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
+                                    # Disatukan ke folder uploads_foto
+                                    path_bukti = upload_file_to_github(cam_bukti, folder_name="uploads_foto")
 
                             if path_bukti or ket_tf:
                                 final_bukti_str = f"{path_bukti}|Private" if path_bukti else ""
@@ -3059,7 +3067,7 @@ elif menu == "Keuangan & Kotak Hijau":
                         "Kotak Hijau", 
                         "Dana dari Pusat (Baksos/Santunan)",
                         "Lain-lain"
-                    ],
+                    ], 
                     key="filter_kategori_cf_tab_laporan"
                 )
 
@@ -3247,12 +3255,12 @@ elif menu == "Keuangan & Kotak Hijau":
                             for paragraph in hdr_cells[i].paragraphs:
                                 for run in paragraph.runs:
                                     run.bold = True
-                            
+                        
                         for _, row in df_t_show.iterrows():
                             row_cells = table.add_row().cells
                             for i, val in enumerate(row):
                                 row_cells[i].text = str(val)
-                            
+                        
                     doc.save(output_word)
                     output_word.seek(0)
                     
