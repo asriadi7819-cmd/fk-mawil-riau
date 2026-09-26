@@ -21,7 +21,7 @@ import cloudinary.api
 # --- KONFIGURASI CLOUDINARY ---
 cloudinary.config(
     cloud_name="dexhqltm",
-    api_key="197881842371248",
+    api_key="585645177582163",
     api_secret="JFQYgD_hErHRikJLQDPoVcTUKb8",
     secure=True
 )
