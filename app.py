@@ -387,13 +387,15 @@ def execute_query(query, params=()):
     conn.commit()
     conn.close()
 
-# --- AMBIL COOKIES DENGAN PENGAMANAN ---
-cookie_logged_in = cookie_manager.get("fk_logged_in")
-cookie_username = cookie_manager.get("fk_username")
-cookie_role = cookie_manager.get("fk_role")
-cookie_nama_sanfk = cookie_manager.get("fk_nama_sanfk")
+# --- AMBIL COOKIES DENGAN PENGAMANAN TOTAL (ANTI-LOGOUT / ANTI-CRASH) ---
+try:
+    cookie_logged_in = cookie_manager.get("fk_logged_in")
+    cookie_username = cookie_manager.get("fk_username")
+    cookie_role = cookie_manager.get("fk_role")
+    cookie_nama_sanfk = cookie_manager.get("fk_nama_sanfk")
+except Exception:
+    cookie_logged_in, cookie_username, cookie_role, cookie_nama_sanfk = None, None, None, None
 
-# Pastikan nilai cookie aman dari None agar tidak error saat validasi session
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = True if str(cookie_logged_in) == "True" else False
 if "username" not in st.session_state:
@@ -404,7 +406,6 @@ if "nama_sanfk" not in st.session_state:
     st.session_state.nama_sanfk = str(cookie_nama_sanfk) if cookie_nama_sanfk else ""
 
 role = st.session_state.role
-
 sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
 
 # --- SIDEBAR: FORM LOGIN, REGISTER ATAU MENU UTAMA ---
@@ -2106,14 +2107,17 @@ elif menu == "Galeri & Feed Umum":
                                     f_path_g, akses_file_item_g = f_item_str_g.split("|", 1)
                                 else:
                                     f_path_g, akses_file_item_g = f_item_str_g, "Public"
-                                    
+                                
+                                # Bersihkan path dari spasi atau tanda kutip sisa
+                                f_path_g = f_path_g.strip().strip('"').strip("'")
                                 ext_fg = f_path_g.split('.')[-1].lower().split('?')[0]
+                                
                                 with cols_img_g[i % 3]:
                                     if akses_file_item_g == "Private":
                                         st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
                                     else:
                                         st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
-                                    
+                                
                                     if ext_fg in ['jpg', 'jpeg', 'png', 'webp']:
                                         st.markdown(f'<img src="{f_path_g}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
                                     elif ext_fg in ['mp4', 'mov', 'avi']:
@@ -2122,7 +2126,7 @@ elif menu == "Galeri & Feed Umum":
                                         st.audio(f_path_g)
                                     else:
                                         st.info(f"📄 Berkas / Dokumen GitHub")
-                                    
+                                
                                     if st.button(f"🗑️ Hapus File {i+1} Ini", key=f"btn_sekre_del_file_{post_id}_{i}"):
                                         arr_foto_g.pop(i)
                                         new_fg_str_updated = ",".join(arr_foto_g)
@@ -2173,14 +2177,17 @@ elif menu == "Galeri & Feed Umum":
                                         f_path_g, akses_file_item_g = f_item_str_g.split("|", 1)
                                     else:
                                         f_path_g, akses_file_item_g = f_item_str_g, "Public"
-                                        
+                                    
+                                    # Bersihkan path dari spasi/tanda kutip agar aman untuk audio/video/gambar
+                                    f_path_g = f_path_g.strip().strip('"').strip("'")
                                     ext_fg = f_path_g.split('.')[-1].lower().split('?')[0]
+                                    
                                     with cols_img_g[i % 3]:
                                         if akses_file_item_g == "Private":
                                             st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
                                         else:
                                             st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
-                                        
+                                    
                                         if ext_fg in ['jpg', 'jpeg', 'png', 'webp']:
                                             st.markdown(f'<img src="{f_path_g}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
                                         elif ext_fg in ['mp4', 'mov', 'avi']:
@@ -2189,8 +2196,8 @@ elif menu == "Galeri & Feed Umum":
                                             st.audio(f_path_g)
                                         else:
                                             st.info(f"📄 Berkas / Dokumen GitHub")
-                                        
-                                        can_download_g = (akses_file_item_g == "Public") or (role == "Admin Dokumentasi Mawil") or (role == post['penulis'])
+                                    
+                                        can_download_g = (akses_file_item_g == "Public") or (role == "Admin Dokumentasi Mawil") or (role == post['penulis']) or (sanfk_aktif_terpilih == post['penulis'])
                                         if can_download_g:
                                             st.markdown(f"[📥 Download / Buka File {i+1}]({f_path_g})", unsafe_allow_html=True)
                                         else:
@@ -2255,7 +2262,7 @@ elif menu == "Galeri & Feed Umum":
                                         st.write(k_isi)
 
                                         if role == "SanFK" and sanfk_aktif_terpilih == k_nama:
-                                            with st.expander("⋮ Menu Opsi"):
+                                            with st.expander("⋮ Menu Opsi Komentar"):
                                                 col_k1, col_k2 = st.columns(2)
                                                 with col_k1:
                                                     with st.expander("✏️ Edit Komentar Ini", key=f"exp_edit_kom_{k_id}"):
@@ -2327,7 +2334,6 @@ elif menu == "Galeri & Feed Umum":
                                     if foto_galeri_files:
                                         with st.spinner("Mengunggah file ke GitHub Repository (uploads_foto)..."):
                                             for fg_item in foto_galeri_files:
-                                                # Disatukan ke folder uploads_foto
                                                 fg_url = upload_file_to_github(fg_item, folder_name="uploads_foto")
                                                 if fg_url:
                                                     akses_dipilih_g = file_access_settings_g.get(fg_item.name, "Private")
@@ -2335,7 +2341,6 @@ elif menu == "Galeri & Feed Umum":
                                     
                                     if cam_galeri is not None:
                                         with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
-                                            # Disatukan ke folder uploads_foto
                                             cgal_url = upload_file_to_github(cam_galeri, folder_name="uploads_foto")
                                             if cgal_url:
                                                 path_list_g.append(f"{cgal_url}|{cam_akses_g}")
@@ -2360,7 +2365,7 @@ elif menu == "Galeri & Feed Umum":
                     if df_my_post.empty:
                         st.info("Belum ada postingan yang Anda buat.")
                     else:
-                        pilihan_mp = {f"[{row['waktu']}] {row['konten'][:30]}...": row['id'] for _, row in df_my_post.iterrows()}
+                        pilihan_mp = {f"[{row['waktu']}] {str(row['konten'])[:30]}...": row['id'] for _, row in df_my_post.iterrows()}
                         pilih_label_mp = st.selectbox("Pilih Postingan Anda untuk Dikelola / Dihapus:", list(pilihan_mp.keys()), key="select_kelola_post")
                         id_mp_aktif = pilihan_mp[pilih_label_mp]
                         
@@ -2377,7 +2382,8 @@ elif menu == "Galeri & Feed Umum":
                                 else:
                                     path_img_g, akses_file_item_g = item_str_g, "Public"
                                 
-                                st.markdown(f"---")
+                                path_img_g = path_img_g.strip().strip('"').strip("'")
+                                st.markdown("---")
                                 ext_file_g = path_img_g.split('.')[-1].lower().split('?')[0]
                                 
                                 col_pg1, col_pg2 = st.columns([2, 2])
@@ -2453,7 +2459,6 @@ elif menu == "Galeri & Feed Umum":
                                 if edit_foto_files_g:
                                     with st.spinner("Mengunggah file baru ke GitHub Repository (uploads_foto)..."):
                                         for efg_item in edit_foto_files_g:
-                                            # Disatukan ke folder uploads_foto
                                             efg_url = upload_file_to_github(efg_item, folder_name="uploads_foto")
                                             if efg_url:
                                                 akses_efg = edit_file_access_settings_g.get(efg_item.name, "Private")
@@ -2461,7 +2466,6 @@ elif menu == "Galeri & Feed Umum":
                                 
                                 if edit_cam_file_g is not None:
                                     with st.spinner("Mengunggah foto kamera baru..."):
-                                        # Disatukan ke folder uploads_foto
                                         ecam_url_g = upload_file_to_github(edit_cam_file_g, folder_name="uploads_foto")
                                         if ecam_url_g:
                                             existing_paths_g.append(f"{ecam_url_g}|{edit_cam_akses_g}")
@@ -2476,6 +2480,8 @@ elif menu == "Galeri & Feed Umum":
                         with col_eg2:
                             if st.button("🗑️ Hapus Postingan Ini Sepenuhnya", key=f"btn_del_post_full_{id_mp_aktif}"):
                                 execute_query("DELETE FROM galeri_umum WHERE id = ?", (id_mp_aktif,))
+                                execute_query("DELETE FROM reaksi_posting WHERE post_id = ?", (id_mp_aktif,))
+                                execute_query("DELETE FROM komentar_posting WHERE post_id = ?", (id_mp_aktif,))
                                 st.success("Postingan berhasil dihapus dari sistem!")
                                 st.rerun()
                                 
