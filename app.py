@@ -1,7 +1,7 @@
-import os
 import streamlit as st
 import pandas as pd
 import sqlite3
+import os
 import base64
 from datetime import datetime, date
 import random
@@ -14,16 +14,6 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from streamlit_cookies_controller import CookieController
-import cloudinary
-import cloudinary.uploader
-
-# --- KONFIGURASI CLOUDINARY ---
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-    secure=True,
-)
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -370,200 +360,7 @@ if "gen_captcha_code" not in st.session_state:
     st.session_state.gen_captcha_code = f"mwRIAU-{random.randint(1000, 9999)}"
 
 role = st.session_state.role
-
-# Tentukan sanfk_aktif_terpilih secara global atau default jika session sudah ada
 sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
-
-# --- SIDEBAR: FORM LOGIN, REGISTER ATAU MENU UTAMA ---
-st.sidebar.title("🕌 FK MAWIL RIAU")
-st.sidebar.markdown("**Forum Silaturrahmi SanFK**")
-st.sidebar.divider()
-
-if not st.session_state.logged_in:
-    auth_mode = st.sidebar.radio("Pilih Mode", ["Login", "Daftar Akun Baru"])
-    
-    if auth_mode == "Login":
-        st.sidebar.subheader("🔑 Silakan Login")
-        login_username = st.sidebar.text_input("Username")
-        login_password = st.sidebar.text_input("Password", type="password")
-        
-        if st.sidebar.button("Masuk", use_container_width=True):
-            conn = sqlite3.connect('fk_mawil_riau.db')
-            cursor = conn.cursor()
-            cursor.execute("SELECT password, role, nama_sanfk FROM users WHERE username = ?", (login_username,))
-            user_row = cursor.fetchone()
-            conn.close()
-            
-            if user_row and user_row[0] == login_password:
-                st.session_state.logged_in = True
-                st.session_state.username = login_username
-                st.session_state.role = user_row[1]
-                st.session_state.nama_sanfk = user_row[2] if user_row[2] else login_username
-                
-                cookie_manager.set('fk_logged_in', 'True', max_age=2592000)
-                cookie_manager.set('fk_username', login_username, max_age=2592000)
-                cookie_manager.set('fk_role', user_row[1], max_age=2592000)
-                cookie_manager.set('fk_nama_sanfk', st.session_state.nama_sanfk, max_age=2592000)
-                
-                st.success("Login berhasil!")
-                st.rerun()
-            else:
-                st.sidebar.error("Username atau Password salah!")
-                
-    else:
-        st.sidebar.subheader("📝 Pendaftaran Akun Baru")
-        reg_role = st.sidebar.selectbox("Pilih Role Pendaftaran", [
-            "SanFK", "Ketua Mawil", "Bendahara Mawil", 
-            "Sekretaris Mawil", "Admin Dokumentasi Mawil", "Ketua Sub Mawil"
-        ])
-        
-        reg_sub_wilayah = "-"
-        if reg_role == "Ketua Sub Mawil":
-            reg_sub_wilayah = st.sidebar.selectbox("Pilih Kabupaten/Kota Sub Mawil", DAFTAR_KAB_KOTA)
-        
-        df_anggota_reg = get_data("SELECT nama, kontak FROM anggota")
-        if not df_anggota_reg.empty:
-            list_nama_sanfk = df_anggota_reg['nama'].tolist()
-            selected_nama_sanfk = st.sidebar.selectbox("Pilih Nama Anda (SanFK)", list_nama_sanfk)
-            
-            selected_row = df_anggota_reg[df_anggota_reg['nama'] == selected_nama_sanfk].iloc[0]
-            db_hp = str(selected_row['kontak']) if pd.notna(selected_row['kontak']) else "-"
-        else:
-            st.sidebar.warning("Belum ada data SanFK di Manajemen SanFK. Harap input data anggota terlebih dahulu.")
-            selected_nama_sanfk = ""
-            db_hp = "-"
-            
-        reg_username = st.sidebar.text_input("Ketik Username (Untuk Login)")
-        
-        pengurus_inti_list = ["Ketua Mawil", "Bendahara Mawil", "Sekretaris Mawil", "Admin Dokumentasi Mawil"]
-        reg_role_captcha_input = "-"
-        if reg_role in pengurus_inti_list:
-            reg_role_captcha_input = st.sidebar.text_input(f"Validasi Kode Khusus Role ({reg_role})")
-        elif reg_role == "SanFK":
-            reg_role_captcha_input = st.sidebar.text_input("Validasi Kode Verifikasi/Captcha SanFK")
-            
-        reg_password = st.sidebar.text_input("Buat Password", type="password")
-            
-        if st.sidebar.button("Daftar Sekarang", use_container_width=True):
-            if not reg_username or not reg_password:
-                st.sidebar.warning("Username dan Password wajib diisi!")
-            else:
-                conn = sqlite3.connect('fk_mawil_riau.db')
-                cursor = conn.cursor()
-                try:
-                    cursor.execute("SELECT COUNT(*) FROM users WHERE username = ?", (reg_username.strip(),))
-                    if cursor.fetchone()[0] > 0:
-                        st.sidebar.error(f"Gagal! Username '{reg_username.strip()}' sudah digunakan.")
-                        conn.close()
-                        st.stop()
-                    
-                    if reg_role in pengurus_inti_list:
-                        cursor.execute("SELECT COUNT(*) FROM users WHERE role = ?", (reg_role,))
-                        if cursor.fetchone()[0] > 0:
-                            st.sidebar.error(f"Gagal! Role **{reg_role}** sudah terdaftar dalam sistem dan hanya boleh ada 1 orang.")
-                            conn.close()
-                            st.stop()
-                    
-                    if reg_role == "Ketua Sub Mawil":
-                        cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Ketua Sub Mawil' AND sub_wilayah = ?", (reg_sub_wilayah,))
-                        if cursor.fetchone()[0] > 0:
-                            st.sidebar.error(f"Gagal! Ketua Sub Mawil untuk wilayah **{reg_sub_wilayah}** sudah terdaftar dan hanya boleh ada 1 orang.")
-                            conn.close()
-                            st.stop()
-
-                    if reg_role in pengurus_inti_list:
-                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE role_pengurus = ? AND nama_sanfk = ?", (reg_role, f"ROLE_{reg_role}"))
-                        res_cap = cursor.fetchone()
-                        saved_captcha = res_cap[0] if res_cap else ""
-                        
-                        if reg_role_captcha_input.strip() != saved_captcha:
-                            st.sidebar.error(f"Kode Captcha untuk role **{reg_role}** tidak valid!")
-                            conn.close()
-                            st.stop()
-                    elif reg_role == "SanFK":
-                        cursor.execute("SELECT kode_captcha FROM pengaturan_captcha WHERE nama_sanfk = ?", (selected_nama_sanfk,))
-                        res_cap_sanfk = cursor.fetchone()
-                        saved_captcha_sanfk = res_cap_sanfk[0] if res_cap_sanfk else ""
-                        
-                        if saved_captcha_sanfk and reg_role_captcha_input.strip() != saved_captcha_sanfk:
-                            st.sidebar.error("Kode Verifikasi / Captcha SanFK tidak valid!")
-                            conn.close()
-                            st.stop()
-                    
-                    reg_hp = db_hp
-                    
-                    cursor.execute("INSERT INTO users (username, password, role, sub_wilayah, no_hp, nama_sanfk) VALUES (?, ?, ?, ?, ?, ?)", 
-                                   (reg_username.strip(), reg_password, reg_role, reg_sub_wilayah, reg_hp, selected_nama_sanfk))
-                    conn.commit()
-                    conn.close()
-                    st.sidebar.success("Pendaftaran berhasil! Silakan pindah ke tab Login.")
-                except sqlite3.OperationalError as e:
-                    conn.close()
-                    st.sidebar.error(f"Terjadi kesalahan database: {e}")
-                finally:
-                    if conn:
-                        conn.close()
-                
-    st.stop()
-
-st.sidebar.success(f"Masuk sebagai: **{st.session_state.nama_sanfk}** ({role})")
-if st.sidebar.button("Keluar (Logout)", use_container_width=True):
-    cookie_manager.set('fk_logged_in', 'False', max_age=0)
-    cookie_manager.set('fk_username', '', max_age=0)
-    cookie_manager.set('fk_role', '', max_age=0)
-    cookie_manager.set('fk_nama_sanfk', '', max_age=0)
-    
-    st.session_state.logged_in = False
-    st.session_state.username = ""
-    st.session_state.role = ""
-    st.session_state.nama_sanfk = ""
-    st.rerun()
-
-st.sidebar.divider()
-
-list_menu = [
-    "Galeri & Feed Umum",
-    "Beranda & Pengumuman",
-    "Manajemen SanFK & KTA",
-    "Agenda & Rutinan Dzikir",
-    "Agenda Kopdar Mawil & Baksos",
-    "Keuangan & Kotak Hijau",
-    "Layanan Santunan & Kontak",
-    "Galeri Resmi (Admin)",
-    "Manajemen Akun & Role"
-]
-
-if role != "Superadmin":
-    if role not in ["SanFK", "Sekretaris Mawil"]:
-       list_menu = [m for m in list_menu if m != "Galeri & Feed Umum"]
-
-    if role in ["Ketua Sub Mawil", "Admin Dokumentasi Mawil"]:
-       list_menu = [m for m in list_menu if m != "Beranda & Pengumuman"]
-
-    if role in ["Ketua Mawil", "Bendahara Mawil", "Ketua Sub Mawil", "Admin Dokumentasi Mawil"]:
-       list_menu = [m for m in list_menu if m != "Manajemen SanFK & KTA"]
-
-    if role in ["Ketua Mawil", "Bendahara Mawil", "Sekretaris Mawil", "Admin Dokumentasi Mawil"]:
-       list_menu = [m for m in list_menu if m != "Agenda & Rutinan Dzikir"]
-
-    if role in ["Bendahara Mawil", "Sekretaris Mawil", "Ketua Sub Mawil", "Admin Dokumentasi Mawil"]:
-       list_menu = [m for m in list_menu if m != "Agenda Kopdar Mawil & Baksos"]
-
-    if role not in ["Bendahara Mawil", "SanFK"]:
-       list_menu = [m for m in list_menu if m != "Keuangan & Kotak Hijau"]
-
-    if role != "SanFK":
-       list_menu = [m for m in list_menu if m != "Layanan Santunan & Kontak"]
-
-    if role not in ["SanFK", "Admin Dokumentasi Mawil"]:
-       list_menu = [m for m in list_menu if m != "Galeri Resmi (Admin)"]
-       
-    list_menu = [m for m in list_menu if m != "Manajemen Akun & Role"]
-
-if not list_menu:
-    list_menu = ["Beranda & Pengumuman"]
-
-menu = st.sidebar.radio("Navigasi Menu", list_menu)
 
 # --- HALAMAN KHUSUS SUPERADMIN: MANAJEMEN AKUN & ROLE ---
 if menu == "Manajemen Akun & Role" and role == "Superadmin":
@@ -2127,7 +1924,6 @@ elif menu == "Galeri & Feed Umum":
                         if post['konten']:
                             st.write(post['konten'])
 
-                        # Fitur Hapus Komentar di Panel Moderator Sekretaris
                         with st.expander("💬 Kelola Komentar Postingan Ini"):
                             df_komentar_sekre = get_data("SELECT id, nama_sanfk, waktu, komentar FROM komentar_posting WHERE post_id = ? ORDER BY id DESC", (post_id,))
                             if df_komentar_sekre.empty:
@@ -2483,7 +2279,7 @@ elif menu == "Galeri & Feed Umum":
                                 execute_query("DELETE FROM galeri_umum WHERE id = ?", (id_mp_aktif,))
                                 st.success("Postingan berhasil dihapus dari sistem!")
                                 st.rerun()
-                               
+                             
 # --- 6. LAYANAN SANTUNAN & KONTAK ---
 elif menu == "Layanan Santunan & Kontak":
     st.title("🤝 Layanan Santunan Sosial & Kontak Darurat")
@@ -2817,7 +2613,7 @@ elif menu == "Manajemen SanFK & KTA":
                 </div>
             </div>
             """, unsafe_allow_html=True)
-           
+            
 # --- 5. KEUANGAN & KOTAK HIJAU ---
 if menu == "Keuangan & Kotak Hijau":
     # Batasi akses hanya untuk SanFK dan Bendahara Mawil
