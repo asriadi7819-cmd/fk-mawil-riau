@@ -1,7 +1,7 @@
+import os
 import streamlit as st
 import pandas as pd
 import sqlite3
-import os
 import base64
 from datetime import datetime, date
 import random
@@ -14,6 +14,16 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from streamlit_cookies_controller import CookieController
+import cloudinary
+import cloudinary.uploader
+
+# --- KONFIGURASI CLOUDINARY ---
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -829,24 +839,30 @@ if menu == "Beranda & Pengumuman":
                     if jdl:
                         path_list = []
                         if foto_pengumuman_files:
-                            for f_item in foto_pengumuman_files:
-                                f_path = os.path.join(UPLOAD_DIR, f"p_{datetime.now().strftime('%Y%m%d%H%M%S')}_{f_item.name}")
-                                with open(f_path, "wb") as f:
-                                    f.write(f_item.getbuffer())
-                                
-                                akses_dipilih = file_access_settings.get(f_item.name, "Private")
-                                path_list.append(f"{f_path}|{akses_dipilih}")
-                                
+                            with st.spinner("Mengunggah file ke Cloudinary..."):
+                                for f_item in foto_pengumuman_files:
+                                    try:
+                                        upload_res = cloudinary.uploader.upload(f_item, resource_type="auto")
+                                        f_url = upload_res.get("secure_url")
+                                        
+                                        akses_dipilih = file_access_settings.get(f_item.name, "Private")
+                                        path_list.append(f"{f_url}|{akses_dipilih}")
+                                    except Exception as e:
+                                        st.error(f"Gagal mengunggah {f_item.name}: {e}")
+                            
                         if cam_pengumuman is not None:
-                            cam_path = os.path.join(UPLOAD_DIR, f"p_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                            with open(cam_path, "wb") as f:
-                                f.write(cam_pengumuman.getbuffer())
-                            path_list.append(f"{cam_path}|{cam_akses}")
+                            with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
+                                try:
+                                    upload_cam = cloudinary.uploader.upload(cam_pengumuman, resource_type="image")
+                                    cam_url = upload_cam.get("secure_url")
+                                    path_list.append(f"{cam_url}|{cam_akses}")
+                                except Exception as e:
+                                    st.error(f"Gagal mengunggah foto kamera: {e}")
                                 
                         foto_p_str = ",".join(path_list) if path_list else ""
                         waktu_skr = datetime.now().strftime("%Y-%m-%d %H:%M")
                         execute_query("INSERT INTO pengumuman (waktu, judul, isi, pembuat, foto_pengumuman) VALUES (?, ?, ?, ?, ?)", (waktu_skr, jdl, isi_p, role, foto_p_str))
-                        st.success("Pengumuman berhasil disiarkan dengan lampiran file dan pengaturan hak akses per dokumen!")
+                        st.success("Pengumuman berhasil disiarkan dengan lampiran file di Cloudinary!")
                         st.rerun()
                     else:
                         st.warning("Judul pengumuman wajib diisi!")
@@ -889,50 +905,48 @@ if menu == "Beranda & Pengumuman":
                                 else:
                                     path_img, akses_file_item = item_str, "Public"
                                 
-                                if os.path.exists(path_img):
-                                    st.markdown(f"---")
-                                    ext_file = path_img.split('.')[-1].lower()
+                                st.markdown(f"---")
+                                ext_file = path_img.split('.')[-1].lower().split('?')[0]
+                                
+                                col_prev1, col_prev2 = st.columns([2, 2])
+                                with col_prev1:
+                                    st.markdown(f"**File {idx_img + 1}:** `{path_img}`")
                                     
-                                    col_prev1, col_prev2 = st.columns([2, 2])
-                                    with col_prev1:
-                                        st.markdown(f"**File {idx_img + 1}:** `{os.path.basename(path_img)}`")
-                                        
-                                        if akses_file_item == "Private":
-                                            st.markdown("🔒 Status: **Tersimpan sebagai Private**")
-                                        else:
-                                            st.markdown("🌍 Status: **Tersimpan sebagai Public**")
+                                    if akses_file_item == "Private":
+                                        st.markdown("🔒 Status: **Tersimpan sebagai Private**")
+                                    else:
+                                        st.markdown("🌍 Status: **Tersimpan sebagai Public**")
 
-                                        if ext_file in ['jpg', 'jpeg', 'png']:
-                                            b64_prev = get_image_base64(path_img)
-                                            st.markdown(f'<img src="{b64_prev}" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;">', unsafe_allow_html=True)
-                                        elif ext_file in ['mp4', 'mov', 'avi']:
-                                            st.video(path_img)
-                                        elif ext_file in ['mp3', 'wav', 'ogg', 'm4a']:
-                                            st.audio(path_img)
-                                        else:
-                                            st.info(f"📄 Dokumen")
-                                            
-                                    with col_prev2:
-                                        ubah_akses_item = st.selectbox(
-                                            f"Ubah Akses File {idx_img + 1}", 
-                                            ["Public", "Private"], 
-                                            index=0 if akses_file_item == "Public" else 1, 
-                                            key=f"ubah_akses_{id_p_terpilih}_{idx_img}"
-                                        )
+                                    if ext_file in ['jpg', 'jpeg', 'png', 'webp']:
+                                        st.markdown(f'<img src="{path_img}" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;">', unsafe_allow_html=True)
+                                    elif ext_file in ['mp4', 'mov', 'avi']:
+                                        st.video(path_img)
+                                    elif ext_file in ['mp3', 'wav', 'ogg', 'm4a']:
+                                        st.audio(path_img)
+                                    else:
+                                        st.info(f"📄 Berkas / Dokumen Cloud")
                                         
-                                        if st.button(f"🗑️ Hapus File Ini", key=f"btn_del_file_single_{id_p_terpilih}_{idx_img}"):
-                                            list_fp.pop(idx_img)
-                                            new_fp_str = ",".join(list_fp)
-                                            execute_query("UPDATE pengumuman SET foto_pengumuman = ? WHERE id = ?", (new_fp_str, id_p_terpilih))
-                                            st.success(f"File {idx_img + 1} berhasil dihapus!")
-                                            st.rerun()
-                                            
-                                        if st.button(f"💾 Simpan Akses File Ini", key=f"btn_save_akses_{id_p_terpilih}_{idx_img}"):
-                                            list_fp[idx_img] = f"{path_img}|{ubah_akses_item}"
-                                            new_fp_str = ",".join(list_fp)
-                                            execute_query("UPDATE pengumuman SET foto_pengumuman = ? WHERE id = ?", (new_fp_str, id_p_terpilih))
-                                            st.success(f"Hak akses File {idx_img + 1} berhasil diperbarui menjadi {ubah_akses_item}!")
-                                            st.rerun()
+                                with col_prev2:
+                                    ubah_akses_item = st.selectbox(
+                                        f"Ubah Akses File {idx_img + 1}", 
+                                        ["Public", "Private"], 
+                                        index=0 if akses_file_item == "Public" else 1, 
+                                        key=f"ubah_akses_{id_p_terpilih}_{idx_img}"
+                                    )
+                                    
+                                    if st.button(f"🗑️ Hapus File Ini", key=f"btn_del_file_single_{id_p_terpilih}_{idx_img}"):
+                                        list_fp.pop(idx_img)
+                                        new_fp_str = ",".join(list_fp)
+                                        execute_query("UPDATE pengumuman SET foto_pengumuman = ? WHERE id = ?", (new_fp_str, id_p_terpilih))
+                                        st.success(f"File {idx_img + 1} berhasil dihapus!")
+                                        st.rerun()
+                                        
+                                    if st.button(f"💾 Simpan Akses File Ini", key=f"btn_save_akses_{id_p_terpilih}_{idx_img}"):
+                                        list_fp[idx_img] = f"{path_img}|{ubah_akses_item}"
+                                        new_fp_str = ",".join(list_fp)
+                                        execute_query("UPDATE pengumuman SET foto_pengumuman = ? WHERE id = ?", (new_fp_str, id_p_terpilih))
+                                        st.success(f"Hak akses File {idx_img + 1} berhasil diperbarui!")
+                                        st.rerun()
                         else:
                             st.info("Tidak ada file yang terlampir pada pengumuman ini.")
 
@@ -967,26 +981,32 @@ if menu == "Beranda & Pengumuman":
                                 existing_paths = list_fp
                                 
                                 if edit_foto_files:
-                                    for ef_item in edit_foto_files:
-                                        f_path = os.path.join(UPLOAD_DIR, f"p_{datetime.now().strftime('%Y%m%d%H%M%S')}_{ef_item.name}")
-                                        with open(f_path, "wb") as f:
-                                            f.write(ef_item.getbuffer())
-                                        
-                                        akses_ef = edit_file_access_settings.get(ef_item.name, "Private")
-                                        existing_paths.append(f"{f_path}|{akses_ef}")
+                                    with st.spinner("Mengunggah file baru ke Cloudinary..."):
+                                        for ef_item in edit_foto_files:
+                                            try:
+                                                upload_ef = cloudinary.uploader.upload(ef_item, resource_type="auto")
+                                                ef_url = upload_ef.get("secure_url")
+                                                
+                                                akses_ef = edit_file_access_settings.get(ef_item.name, "Private")
+                                                existing_paths.append(f"{ef_url}|{akses_ef}")
+                                            except Exception as e:
+                                                st.error(f"Gagal upload {ef_item.name}: {e}")
                                         
                                 if edit_cam_file is not None:
-                                    c_path = os.path.join(UPLOAD_DIR, f"p_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                    with open(c_path, "wb") as f:
-                                        f.write(edit_cam_file.getbuffer())
-                                    existing_paths.append(f"{c_path}|{edit_cam_akses}")
+                                    with st.spinner("Mengunggah foto kamera baru..."):
+                                        try:
+                                            upload_ecam = cloudinary.uploader.upload(edit_cam_file, resource_type="image")
+                                            ecam_url = upload_ecam.get("secure_url")
+                                            existing_paths.append(f"{ecam_url}|{edit_cam_akses}")
+                                        except Exception as e:
+                                            st.error(f"Gagal upload kamera: {e}")
                                         
                                 foto_p_path_e = ",".join(existing_paths)
                                 execute_query(
                                     "UPDATE pengumuman SET judul = ?, isi = ?, foto_pengumuman = ? WHERE id = ?",
                                     (edit_jdl, edit_isi, foto_p_path_e, id_p_terpilih)
                                 )
-                                st.success("Pengumuman dan penambahan file baru berhasil disimpan!")
+                                st.success("Pengumuman dan file baru berhasil disimpan di Cloudinary!")
                                 st.rerun()
                         with col_eb2:
                             if st.button("🗑️ Hapus Pengumuman Ini Sepenuhnya", key=f"btn_del_p_{id_p_terpilih}"):
@@ -1014,36 +1034,27 @@ if menu == "Beranda & Pengumuman":
                             else:
                                 f_path, akses_file_item = f_item_str, "Public"
                                 
-                            if os.path.exists(f_path):
-                                ext_f = f_path.split('.')[-1].lower()
-                                with cols_img[i % 3]:
-                                    if akses_file_item == "Private":
-                                        st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
-                                    else:
-                                        st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
-                                        
-                                    if ext_f in ['jpg', 'jpeg', 'png']:
-                                        b64_p = get_image_base64(f_path)
-                                        if b64_p:
-                                            st.markdown(f'<img src="{b64_p}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
-                                    elif ext_f in ['mp4', 'mov', 'avi']:
-                                        st.video(f_path)
-                                    elif ext_f in ['mp3', 'wav', 'ogg', 'm4a']:
-                                        st.audio(f_path)
-                                    else:
-                                        st.info(f"📄 Lampiran: {os.path.basename(f_path)}")
+                            ext_f = f_path.split('.')[-1].lower().split('?')[0]
+                            with cols_img[i % 3]:
+                                if akses_file_item == "Private":
+                                    st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
+                                else:
+                                    st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
                                     
-                                    can_download = (akses_file_item == "Public") or (role == pembuat_pengumuman)
-                                    if can_download:
-                                        with open(f_path, "rb") as file_to_dl:
-                                            st.download_button(
-                                                label=f"📥 Download File {i+1}",
-                                                data=file_to_dl,
-                                                file_name=os.path.basename(f_path),
-                                                key=f"dl_p_{p['id']}_{i}"
-                                            )
-                                    else:
-                                        st.warning("🔒 File Private (Akses Dibatasi)")
+                                if ext_f in ['jpg', 'jpeg', 'png', 'webp']:
+                                    st.markdown(f'<img src="{f_path}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
+                                elif ext_f in ['mp4', 'mov', 'avi']:
+                                    st.video(f_path)
+                                elif ext_f in ['mp3', 'wav', 'ogg', 'm4a']:
+                                    st.audio(f_path)
+                                else:
+                                    st.info(f"📄 Berkas / Dokumen Cloud")
+                                
+                                can_download = (akses_file_item == "Public") or (role == pembuat_pengumuman)
+                                if can_download:
+                                    st.markdown(f"[📥 Download / Buka File {i+1}]({f_path})", unsafe_allow_html=True)
+                                else:
+                                    st.warning("🔒 File Private (Akses Dibatasi)")
                     
                     st.write(p['isi'])
                     st.caption(f"Dipublikasikan oleh: {p['pembuat']} pada {p['waktu']}")
@@ -1351,36 +1362,27 @@ elif menu == "Galeri Resmi (Admin)":
                                     else:
                                         f_path_r, akses_file_item_r = f_item_str_r, "Public"
                                         
-                                    if os.path.exists(f_path_r):
-                                        ext_fr = f_path_r.split('.')[-1].lower()
-                                        with cols_img_r[i % 3]:
-                                            if akses_file_item_r == "Private":
-                                                st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
-                                            else:
-                                                st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
-                                                
-                                            if ext_fr in ['jpg', 'jpeg', 'png']:
-                                                b64_pr = get_image_base64(f_path_r)
-                                                if b64_pr:
-                                                    st.markdown(f'<img src="{b64_pr}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
-                                            elif ext_fr in ['mp4', 'mov', 'avi']:
-                                                st.video(f_path_r)
-                                            elif ext_fr in ['mp3', 'wav', 'ogg', 'm4a']:
-                                                st.audio(f_path_r)
-                                            else:
-                                                st.info(f"📄 Lampiran: {os.path.basename(f_path_r)}")
+                                    ext_fr = f_path_r.split('.')[-1].lower().split('?')[0]
+                                    with cols_img_r[i % 3]:
+                                        if akses_file_item_r == "Private":
+                                            st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
+                                        else:
+                                            st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
                                             
-                                            can_download_r = (akses_file_item_r == "Public") or (role == "Admin Dokumentasi Mawil")
-                                            if can_download_r:
-                                                with open(f_path_r, "rb") as file_to_dl_r:
-                                                    st.download_button(
-                                                        label=f"📥 Download File {i+1}",
-                                                        data=file_to_dl_r,
-                                                        file_name=os.path.basename(f_path_r),
-                                                        key=f"dl_r_{post_id_r}_{i}"
-                                                    )
-                                            else:
-                                                st.warning("🔒 File Private (Akses Dibatasi)")
+                                        if ext_fr in ['jpg', 'jpeg', 'png', 'webp']:
+                                            st.markdown(f'<img src="{f_path_r}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
+                                        elif ext_fr in ['mp4', 'mov', 'avi']:
+                                            st.video(f_path_r)
+                                        elif ext_fr in ['mp3', 'wav', 'ogg', 'm4a']:
+                                            st.audio(f_path_r)
+                                        else:
+                                            st.info(f"📄 Berkas / Dokumen Cloud")
+                                        
+                                        can_download_r = (akses_file_item_r == "Public") or (role == "Admin Dokumentasi Mawil")
+                                        if can_download_r:
+                                            st.markdown(f"[📥 Download / Buka File {i+1}]({f_path_r})", unsafe_allow_html=True)
+                                        else:
+                                            st.warning("🔒 File Private (Akses Dibatasi)")
 
                             df_reaksi_resmi = get_data("SELECT reaksi, COUNT(*) as jml FROM reaksi_resmi WHERE post_id = ? GROUP BY reaksi", (post_id_r,))
                             c_like_r = int(df_reaksi_resmi[df_reaksi_resmi['reaksi'] == 'Like']['jml'].values[0]) if not df_reaksi_resmi[df_reaksi_resmi['reaksi'] == 'Like'].empty else 0
@@ -1444,19 +1446,25 @@ elif menu == "Galeri Resmi (Admin)":
                     if judul_kegiatan and (foto_resmi_files or cam_resmi):
                         path_list_r = []
                         if foto_resmi_files:
-                            for fr_item in foto_resmi_files:
-                                f_path_r = os.path.join(UPLOAD_DIR, f"r_{datetime.now().strftime('%Y%m%d%H%M%S')}_{fr_item.name}")
-                                with open(f_path_r, "wb") as f:
-                                    f.write(fr_item.getbuffer())
-                                
-                                akses_dipilih_r = file_access_settings_r.get(fr_item.name, "Private")
-                                path_list_r.append(f"{f_path_r}|{akses_dipilih_r}")
+                            with st.spinner("Mengunggah file ke Cloudinary..."):
+                                for fr_item in foto_resmi_files:
+                                    try:
+                                        upload_fr = cloudinary.uploader.upload(fr_item, resource_type="auto")
+                                        fr_url = upload_fr.get("secure_url")
+                                        
+                                        akses_dipilih_r = file_access_settings_r.get(fr_item.name, "Private")
+                                        path_list_r.append(f"{fr_url}|{akses_dipilih_r}")
+                                    except Exception as e:
+                                        st.error(f"Gagal mengunggah {fr_item.name}: {e}")
                                 
                         if cam_resmi is not None:
-                            cam_path_r = os.path.join(UPLOAD_DIR, f"r_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                            with open(cam_path_r, "wb") as f:
-                                f.write(cam_resmi.getbuffer())
-                            path_list_r.append(f"{cam_path_r}|{cam_akses_r}")
+                            with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
+                                try:
+                                    upload_cam_r = cloudinary.uploader.upload(cam_resmi, resource_type="image")
+                                    cam_url_r = upload_cam_r.get("secure_url")
+                                    path_list_r.append(f"{cam_url_r}|{cam_akses_r}")
+                                except Exception as e:
+                                    st.error(f"Gagal mengunggah foto kamera: {e}")
                                 
                         foto_r_str = ",".join(path_list_r) if path_list_r else ""
                         waktu_post_r = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -1464,7 +1472,7 @@ elif menu == "Galeri Resmi (Admin)":
                             "INSERT INTO galeri_resmi (judul, kategori, waktu, foto_resmi) VALUES (?, ?, ?, ?)",
                             (judul_kegiatan, "-", waktu_post_r, foto_r_str)
                         )
-                        st.success(f"Dokumentasi berhasil diunggah ke Galeri Resmi!")
+                        st.success(f"Dokumentasi berhasil diunggah ke Galeri Resmi via Cloudinary!")
                         st.rerun()
                     else:
                         st.warning("Kolom input dan file lampiran wajib diisi!")
@@ -1493,49 +1501,47 @@ elif menu == "Galeri Resmi (Admin)":
                             else:
                                 path_img_r, akses_file_item_r = item_str_r, "Public"
                             
-                            if os.path.exists(path_img_r):
-                                st.markdown(f"---")
-                                ext_file_r = path_img_r.split('.')[-1].lower()
-                                
-                                col_pr1, col_pr2 = st.columns([2, 2])
-                                with col_pr1:
-                                    st.markdown(f"**File {idx_img_r + 1}:** `{os.path.basename(path_img_r)}`")
-                                    if akses_file_item_r == "Private":
-                                        st.markdown("🔒 Status: **Tersimpan sebagai Private**")
-                                    else:
-                                        st.markdown("🌍 Status: **Tersimpan sebagai Public**")
+                            st.markdown(f"---")
+                            ext_file_r = path_img_r.split('.')[-1].lower().split('?')[0]
+                            
+                            col_pr1, col_pr2 = st.columns([2, 2])
+                            with col_pr1:
+                                st.markdown(f"**File {idx_img_r + 1}:** `{path_img_r}`")
+                                if akses_file_item_r == "Private":
+                                    st.markdown("🔒 Status: **Tersimpan sebagai Private**")
+                                else:
+                                    st.markdown("🌍 Status: **Tersimpan sebagai Public**")
 
-                                    if ext_file_r in ['jpg', 'jpeg', 'png']:
-                                        b64_prev_r = get_image_base64(path_img_r)
-                                        st.markdown(f'<img src="{b64_prev_r}" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;">', unsafe_allow_html=True)
-                                    elif ext_file_r in ['mp4', 'mov', 'avi']:
-                                        st.video(path_img_r)
-                                    elif ext_file_r in ['mp3', 'wav', 'ogg', 'm4a']:
-                                        st.audio(path_img_r)
-                                    else:
-                                        st.info(f"📄 Dokumen")
-                                        
-                                with col_pr2:
-                                    ubah_akses_item_r = st.selectbox(
-                                        f"Ubah Akses File {idx_img_r + 1}", 
-                                        ["Public", "Private"], 
-                                        index=0 if akses_file_item_r == "Public" else 1, 
-                                        key=f"ubah_akses_r_{id_mr_aktif}_{idx_img_r}"
-                                    )
+                                if ext_file_r in ['jpg', 'jpeg', 'png', 'webp']:
+                                    st.markdown(f'<img src="{path_img_r}" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;">', unsafe_allow_html=True)
+                                elif ext_file_r in ['mp4', 'mov', 'avi']:
+                                    st.video(path_img_r)
+                                elif ext_file_r in ['mp3', 'wav', 'ogg', 'm4a']:
+                                    st.audio(path_img_r)
+                                else:
+                                    st.info(f"📄 Berkas / Dokumen Cloud")
                                     
-                                    if st.button(f"🗑️ Hapus File Ini", key=f"btn_del_file_r_single_{id_mr_aktif}_{idx_img_r}"):
-                                        list_fr.pop(idx_img_r)
-                                        new_fr_str = ",".join(list_fr)
-                                        execute_query("UPDATE galeri_resmi SET foto_resmi = ? WHERE id = ?", (new_fr_str, id_mr_aktif))
-                                        st.success(f"File {idx_img_r + 1} berhasil dihapus!")
-                                        st.rerun()
-                                        
-                                    if st.button(f"💾 Simpan Akses File Ini", key=f"btn_save_akses_r_{id_mr_aktif}_{idx_img_r}"):
-                                        list_fr[idx_img_r] = f"{path_img_r}|{ubah_akses_item_r}"
-                                        new_fr_str = ",".join(list_fr)
-                                        execute_query("UPDATE galeri_resmi SET foto_resmi = ? WHERE id = ?", (new_fr_str, id_mr_aktif))
-                                        st.success(f"Hak akses File {idx_img_r + 1} berhasil diperbarui menjadi {ubah_akses_item_r}!")
-                                        st.rerun()
+                            with col_pr2:
+                                ubah_akses_item_r = st.selectbox(
+                                    f"Ubah Akses File {idx_img_r + 1}", 
+                                    ["Public", "Private"], 
+                                    index=0 if akses_file_item_r == "Public" else 1, 
+                                    key=f"ubah_akses_r_{id_mr_aktif}_{idx_img_r}"
+                                )
+                                
+                                if st.button(f"🗑️ Hapus File Ini", key=f"btn_del_file_r_single_{id_mr_aktif}_{idx_img_r}"):
+                                    list_fr.pop(idx_img_r)
+                                    new_fr_str = ",".join(list_fr)
+                                    execute_query("UPDATE galeri_resmi SET foto_resmi = ? WHERE id = ?", (new_fr_str, id_mr_aktif))
+                                    st.success(f"File {idx_img_r + 1} berhasil dihapus!")
+                                    st.rerun()
+                                    
+                                if st.button(f"💾 Simpan Akses File Ini", key=f"btn_save_akses_r_{id_mr_aktif}_{idx_img_r}"):
+                                    list_fr[idx_img_r] = f"{path_img_r}|{ubah_akses_item_r}"
+                                    new_fr_str = ",".join(list_fr)
+                                    execute_query("UPDATE galeri_resmi SET foto_resmi = ? WHERE id = ?", (new_fr_str, id_mr_aktif))
+                                    st.success(f"Hak akses File {idx_img_r + 1} berhasil diperbarui!")
+                                    st.rerun()
                     else:
                         st.info("Tidak ada file yang terlampir pada dokumentasi ini.")
 
@@ -1569,26 +1575,32 @@ elif menu == "Galeri Resmi (Admin)":
                             existing_paths_r = list_fr
                             
                             if edit_foto_files_r:
-                                for efr_item in edit_foto_files_r:
-                                    f_path_r = os.path.join(UPLOAD_DIR, f"r_{datetime.now().strftime('%Y%m%d%H%M%S')}_{efr_item.name}")
-                                    with open(f_path_r, "wb") as f:
-                                        f.write(efr_item.getbuffer())
-                                    
-                                    akses_efr = edit_file_access_settings_r.get(efr_item.name, "Private")
-                                    existing_paths_r.append(f"{f_path_r}|{akses_efr}")
+                                with st.spinner("Mengunggah file baru ke Cloudinary..."):
+                                    for efr_item in edit_foto_files_r:
+                                        try:
+                                            upload_efr = cloudinary.uploader.upload(efr_item, resource_type="auto")
+                                            efr_url = upload_efr.get("secure_url")
+                                            
+                                            akses_efr = edit_file_access_settings_r.get(efr_item.name, "Private")
+                                            existing_paths_r.append(f"{efr_url}|{akses_efr}")
+                                        except Exception as e:
+                                            st.error(f"Gagal upload {efr_item.name}: {e}")
                                     
                             if edit_cam_file_r is not None:
-                                c_path_r = os.path.join(UPLOAD_DIR, f"r_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                with open(c_path_r, "wb") as f:
-                                    f.write(edit_cam_file_r.getbuffer())
-                                existing_paths_r.append(f"{c_path_r}|{edit_cam_akses_r}")
+                                with st.spinner("Mengunggah foto kamera baru..."):
+                                    try:
+                                        upload_ecam_r = cloudinary.uploader.upload(edit_cam_file_r, resource_type="image")
+                                        ecam_url_r = upload_ecam_r.get("secure_url")
+                                        existing_paths_r.append(f"{ecam_url_r}|{edit_cam_akses_r}")
+                                    except Exception as e:
+                                        st.error(f"Gagal upload kamera: {e}")
                                     
                             foto_r_path_e = ",".join(existing_paths_r)
                             execute_query(
                                 "UPDATE galeri_resmi SET judul = ?, foto_resmi = ? WHERE id = ?",
                                 (edit_judul_resmi, foto_r_path_e, id_mr_aktif)
                             )
-                            st.success("Dokumentasi resmi berhasil diperbarui!")
+                            st.success("Dokumentasi resmi berhasil diperbarui di Cloudinary!")
                             st.rerun()
                     with col_er2:
                         if st.button("🗑️ Hapus Dokumentasi Ini Sepenuhnya", key=f"btn_del_resmi_full_{id_mr_aktif}"):
@@ -1619,36 +1631,27 @@ elif menu == "Galeri Resmi (Admin)":
                                 else:
                                     f_path_r, akses_file_item_r = f_item_str_r, "Public"
                                     
-                                if os.path.exists(f_path_r):
-                                    ext_fr = f_path_r.split('.')[-1].lower()
-                                    with cols_img_r[i % 3]:
-                                        if akses_file_item_r == "Private":
-                                            st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
-                                        else:
-                                            st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
-                                            
-                                        if ext_fr in ['jpg', 'jpeg', 'png']:
-                                            b64_pr = get_image_base64(f_path_r)
-                                            if b64_pr:
-                                                st.markdown(f'<img src="{b64_pr}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
-                                        elif ext_fr in ['mp4', 'mov', 'avi']:
-                                            st.video(f_path_r)
-                                        elif ext_fr in ['mp3', 'wav', 'ogg', 'm4a']:
-                                            st.audio(f_path_r)
-                                        else:
-                                            st.info(f"📄 Lampiran: {os.path.basename(f_path_r)}")
+                                ext_fr = f_path_r.split('.')[-1].lower().split('?')[0]
+                                with cols_img_r[i % 3]:
+                                    if akses_file_item_r == "Private":
+                                        st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
+                                    else:
+                                        st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
                                         
-                                        can_download_r = (akses_file_item_r == "Public") or (role == "Admin Dokumentasi Mawil")
-                                        if can_download_r:
-                                            with open(f_path_r, "rb") as file_to_dl_r:
-                                                st.download_button(
-                                                    label=f"📥 Download File {i+1}",
-                                                    data=file_to_dl_r,
-                                                    file_name=os.path.basename(f_path_r),
-                                                    key=f"dl_r_{post_id_r}_{i}"
-                                                )
-                                        else:
-                                            st.warning("🔒 File Private (Akses Dibatasi)")
+                                    if ext_fr in ['jpg', 'jpeg', 'png', 'webp']:
+                                        st.markdown(f'<img src="{f_path_r}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
+                                    elif ext_fr in ['mp4', 'mov', 'avi']:
+                                        st.video(f_path_r)
+                                    elif ext_fr in ['mp3', 'wav', 'ogg', 'm4a']:
+                                        st.audio(f_path_r)
+                                    else:
+                                        st.info(f"📄 Berkas / Dokumen Cloud")
+                                    
+                                    can_download_r = (akses_file_item_r == "Public") or (role == "Admin Dokumentasi Mawil")
+                                    if can_download_r:
+                                        st.markdown(f"[📥 Download / Buka File {i+1}]({f_path_r})", unsafe_allow_html=True)
+                                    else:
+                                        st.warning("🔒 File Private (Akses Dibatasi)")
 
                         df_reaksi_resmi = get_data("SELECT reaksi, COUNT(*) as jml FROM reaksi_resmi WHERE post_id = ? GROUP BY reaksi", (post_id_r,))
                         c_like_r = int(df_reaksi_resmi[df_reaksi_resmi['reaksi'] == 'Like']['jml'].values[0]) if not df_reaksi_resmi[df_reaksi_resmi['reaksi'] == 'Like'].empty else 0
@@ -1667,7 +1670,6 @@ elif menu == "Galeri Resmi (Admin)":
                                 if st.button("👎 Dislike", key=f"btn_rdislike_{post_id_r}"):
                                     execute_query("INSERT OR REPLACE INTO reaksi_resmi (post_id, nama_sanfk, reaksi) VALUES (?, ?, ?)", (post_id_r, sanfk_aktif_terpilih, "Dislike"))
                                     st.rerun()
-
                             with cols_reaksi_r[2]:
                                 if st.button("❤️ Love", key=f"btn_rlove_{post_id_r}"):
                                     execute_query("INSERT OR REPLACE INTO reaksi_resmi (post_id, nama_sanfk, reaksi) VALUES (?, ?, ?)", (post_id_r, sanfk_aktif_terpilih, "Love"))
@@ -2099,31 +2101,28 @@ elif menu == "Galeri & Feed Umum":
                                 else:
                                     f_path_g, akses_file_item_g = f_item_str_g, "Public"
                                     
-                                if os.path.exists(f_path_g):
-                                    ext_fg = f_path_g.split('.')[-1].lower()
-                                    with cols_img_g[i % 3]:
-                                        if akses_file_item_g == "Private":
-                                            st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
-                                        else:
-                                            st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
-                                        
-                                        if ext_fg in ['jpg', 'jpeg', 'png']:
-                                            b64_pg = get_image_base64(f_path_g)
-                                            if b64_pg:
-                                                st.markdown(f'<img src="{b64_pg}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
-                                        elif ext_fg in ['mp4', 'mov', 'avi']:
-                                            st.video(f_path_g)
-                                        elif ext_fg in ['mp3', 'wav', 'ogg', 'm4a']:
-                                            st.audio(f_path_g)
-                                        else:
-                                            st.info(f"📄 Lampiran: {os.path.basename(f_path_g)}")
-                                        
-                                        if st.button(f"🗑️ Hapus File {i+1} Ini", key=f"btn_sekre_del_file_{post_id}_{i}"):
-                                            arr_foto_g.pop(i)
-                                            new_fg_str_updated = ",".join(arr_foto_g)
-                                            execute_query("UPDATE galeri_umum SET foto_galeri = ? WHERE id = ?", (new_fg_str_updated, post_id))
-                                            st.success(f"File {i+1} berhasil dihapus oleh Sekretaris Mawil!")
-                                            st.rerun()
+                                ext_fg = f_path_g.split('.')[-1].lower().split('?')[0]
+                                with cols_img_g[i % 3]:
+                                    if akses_file_item_g == "Private":
+                                        st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
+                                    else:
+                                        st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
+                                    
+                                    if ext_fg in ['jpg', 'jpeg', 'png', 'webp']:
+                                        st.markdown(f'<img src="{f_path_g}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
+                                    elif ext_fg in ['mp4', 'mov', 'avi']:
+                                        st.video(f_path_g)
+                                    elif ext_fg in ['mp3', 'wav', 'ogg', 'm4a']:
+                                        st.audio(f_path_g)
+                                    else:
+                                        st.info(f"📄 Berkas / Dokumen Cloud")
+                                    
+                                    if st.button(f"🗑️ Hapus File {i+1} Ini", key=f"btn_sekre_del_file_{post_id}_{i}"):
+                                        arr_foto_g.pop(i)
+                                        new_fg_str_updated = ",".join(arr_foto_g)
+                                        execute_query("UPDATE galeri_umum SET foto_galeri = ? WHERE id = ?", (new_fg_str_updated, post_id))
+                                        st.success(f"File {i+1} berhasil dihapus oleh Sekretaris Mawil!")
+                                        st.rerun()
                         
                         if post['konten']:
                             st.write(post['konten'])
@@ -2170,36 +2169,27 @@ elif menu == "Galeri & Feed Umum":
                                     else:
                                         f_path_g, akses_file_item_g = f_item_str_g, "Public"
                                         
-                                    if os.path.exists(f_path_g):
-                                        ext_fg = f_path_g.split('.')[-1].lower()
-                                        with cols_img_g[i % 3]:
-                                            if akses_file_item_g == "Private":
-                                                st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
-                                            else:
-                                                st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
-                                            
-                                            if ext_fg in ['jpg', 'jpeg', 'png']:
-                                                b64_pg = get_image_base64(f_path_g)
-                                                if b64_pg:
-                                                    st.markdown(f'<img src="{b64_pg}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
-                                            elif ext_fg in ['mp4', 'mov', 'avi']:
-                                                st.video(f_path_g)
-                                            elif ext_fg in ['mp3', 'wav', 'ogg', 'm4a']:
-                                                st.audio(f_path_g)
-                                            else:
-                                                st.info(f"📄 Lampiran: {os.path.basename(f_path_g)}")
-                                            
-                                            can_download_g = (akses_file_item_g == "Public") or (role == "Admin Dokumentasi Mawil") or (role == post['penulis'])
-                                            if can_download_g:
-                                                with open(f_path_g, "rb") as file_to_dl_g:
-                                                    st.download_button(
-                                                        label=f"📥 Download File {i+1}",
-                                                        data=file_to_dl_g,
-                                                        file_name=os.path.basename(f_path_g),
-                                                        key=f"dl_g_{post['id']}_{i}"
-                                                    )
-                                            else:
-                                                st.warning("🔒 File Private (Akses Dibatasi)")
+                                    ext_fg = f_path_g.split('.')[-1].lower().split('?')[0]
+                                    with cols_img_g[i % 3]:
+                                        if akses_file_item_g == "Private":
+                                            st.caption(f"🔒 File {i+1}: **Tersimpan sebagai Private**")
+                                        else:
+                                            st.caption(f"🌍 File {i+1}: **Tersimpan sebagai Public**")
+                                        
+                                        if ext_fg in ['jpg', 'jpeg', 'png', 'webp']:
+                                            st.markdown(f'<img src="{f_path_g}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; border: 1px solid #ddd;">', unsafe_allow_html=True)
+                                        elif ext_fg in ['mp4', 'mov', 'avi']:
+                                            st.video(f_path_g)
+                                        elif ext_fg in ['mp3', 'wav', 'ogg', 'm4a']:
+                                            st.audio(f_path_g)
+                                        else:
+                                            st.info(f"📄 Berkas / Dokumen Cloud")
+                                        
+                                        can_download_g = (akses_file_item_g == "Public") or (role == "Admin Dokumentasi Mawil") or (role == post['penulis'])
+                                        if can_download_g:
+                                            st.markdown(f"[📥 Download / Buka File {i+1}]({f_path_g})", unsafe_allow_html=True)
+                                        else:
+                                            st.warning("🔒 File Private (Akses Dibatasi)")
                             
                             if post['konten']:
                                 st.write(post['konten'])
@@ -2259,7 +2249,6 @@ elif menu == "Galeri & Feed Umum":
                                         st.markdown(f"**{k_nama}** <small>({k_waktu})</small>", unsafe_allow_html=True)
                                         st.write(k_isi)
 
-                                        # Tombol Edit & Hapus disembunyikan di dalam menu titik tiga (Expander)
                                         if role == "SanFK" and sanfk_aktif_terpilih == k_nama:
                                             with st.expander("⋮ Menu Opsi"):
                                                 col_k1, col_k2 = st.columns(2)
@@ -2279,7 +2268,6 @@ elif menu == "Galeri & Feed Umum":
                                                         st.rerun()
 
                                         st.markdown("---")
-                            
                             st.divider()
 
             with tab_gal_2:
@@ -2332,19 +2320,25 @@ elif menu == "Galeri & Feed Umum":
                                 if penulis_terpilih and (konten or foto_galeri_files or cam_galeri):
                                     path_list_g = []
                                     if foto_galeri_files:
-                                        for fg_item in foto_galeri_files:
-                                            f_path_g = os.path.join(UPLOAD_DIR, f"g_{datetime.now().strftime('%Y%m%d%H%M%S')}_{fg_item.name}")
-                                            with open(f_path_g, "wb") as f:
-                                                f.write(fg_item.getbuffer())
-                                            
-                                            akses_dipilih_g = file_access_settings_g.get(fg_item.name, "Private")
-                                            path_list_g.append(f"{f_path_g}|{akses_dipilih_g}")
+                                        with st.spinner("Mengunggah file ke Cloudinary..."):
+                                            for fg_item in foto_galeri_files:
+                                                try:
+                                                    upload_fg = cloudinary.uploader.upload(fg_item, resource_type="auto")
+                                                    fg_url = upload_fg.get("secure_url")
+                                                    
+                                                    akses_dipilih_g = file_access_settings_g.get(fg_item.name, "Private")
+                                                    path_list_g.append(f"{fg_url}|{akses_dipilih_g}")
+                                                except Exception as e:
+                                                    st.error(f"Gagal mengunggah {fg_item.name}: {e}")
                                             
                                     if cam_galeri is not None:
-                                        cam_path_g = os.path.join(UPLOAD_DIR, f"g_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                        with open(cam_path_g, "wb") as f:
-                                            f.write(cam_galeri.getbuffer())
-                                        path_list_g.append(f"{cam_path_g}|{cam_akses_g}")
+                                        with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
+                                            try:
+                                                upload_cgal = cloudinary.uploader.upload(cam_galeri, resource_type="image")
+                                                cgal_url = upload_cgal.get("secure_url")
+                                                path_list_g.append(f"{cgal_url}|{cam_akses_g}")
+                                            except Exception as e:
+                                                st.error(f"Gagal mengunggah foto kamera: {e}")
                                         
                                     foto_g_str = ",".join(path_list_g) if path_list_g else ""
                                     waktu_post = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -2352,7 +2346,7 @@ elif menu == "Galeri & Feed Umum":
                                         "INSERT INTO galeri_umum (penulis, sub_mawil, waktu, konten, foto_galeri, tipe) VALUES (?, ?, ?, ?, ?, ?)", 
                                         (penulis_terpilih, wilayah, waktu_post, konten, foto_g_str, "Postingan")
                                     )
-                                    st.success("Postingan dan lampiran file berhasil dibagikan!")
+                                    st.success("Postingan dan lampiran file berhasil dibagikan ke Cloudinary!")
                                     st.rerun()
                                 else:
                                     st.warning("Konten atau file lampiran wajib diisi!")
@@ -2383,49 +2377,47 @@ elif menu == "Galeri & Feed Umum":
                                 else:
                                     path_img_g, akses_file_item_g = item_str_g, "Public"
                                 
-                                if os.path.exists(path_img_g):
-                                    st.markdown(f"---")
-                                    ext_file_g = path_img_g.split('.')[-1].lower()
-                                    
-                                    col_pg1, col_pg2 = st.columns([2, 2])
-                                    with col_pg1:
-                                        st.markdown(f"**File {idx_img_g + 1}:** `{os.path.basename(path_img_g)}`")
-                                        if akses_file_item_g == "Private":
-                                            st.markdown("🔒 Status: **Tersimpan sebagai Private**")
-                                        else:
-                                            st.markdown("🌍 Status: **Tersimpan sebagai Public**")
+                                st.markdown(f"---")
+                                ext_file_g = path_img_g.split('.')[-1].lower().split('?')[0]
+                                
+                                col_pg1, col_pg2 = st.columns([2, 2])
+                                with col_pg1:
+                                    st.markdown(f"**File {idx_img_g + 1}:** `{path_img_g}`")
+                                    if akses_file_item_g == "Private":
+                                        st.markdown("🔒 Status: **Tersimpan sebagai Private**")
+                                    else:
+                                        st.markdown("🌍 Status: **Tersimpan sebagai Public**")
 
-                                        if ext_file_g in ['jpg', 'jpeg', 'png']:
-                                            b64_prev_g = get_image_base64(path_img_g)
-                                            st.markdown(f'<img src="{b64_prev_g}" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;">', unsafe_allow_html=True)
-                                        elif ext_file_g in ['mp4', 'mov', 'avi']:
-                                            st.video(path_img_g)
-                                        elif ext_file_g in ['mp3', 'wav', 'ogg', 'm4a']:
-                                            st.audio(path_img_g)
-                                        else:
-                                            st.info(f"📄 Dokumen")
-                                            
-                                    with col_pg2:
-                                        ubah_akses_item_g = st.selectbox(
-                                            f"Ubah Akses File {idx_img_g + 1}", 
-                                            ["Public", "Private"], 
-                                            index=0 if akses_file_item_g == "Public" else 1, 
-                                            key=f"ubah_akses_g_{id_mp_aktif}_{idx_img_g}"
-                                        )
+                                    if ext_file_g in ['jpg', 'jpeg', 'png', 'webp']:
+                                        st.markdown(f'<img src="{path_img_g}" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;">', unsafe_allow_html=True)
+                                    elif ext_file_g in ['mp4', 'mov', 'avi']:
+                                        st.video(path_img_g)
+                                    elif ext_file_g in ['mp3', 'wav', 'ogg', 'm4a']:
+                                        st.audio(path_img_g)
+                                    else:
+                                        st.info(f"📄 Berkas / Dokumen Cloud")
                                         
-                                        if st.button(f"🗑️ Hapus File Ini", key=f"btn_del_file_g_single_{id_mp_aktif}_{idx_img_g}"):
-                                            list_fg.pop(idx_img_g)
-                                            new_fg_str = ",".join(list_fg)
-                                            execute_query("UPDATE galeri_umum SET foto_galeri = ? WHERE id = ?", (new_fg_str, id_mp_aktif))
-                                            st.success(f"File {idx_img_g + 1} berhasil dihapus!")
-                                            st.rerun()
-                                            
-                                        if st.button(f"💾 Simpan Akses File Ini", key=f"btn_save_akses_g_{id_mp_aktif}_{idx_img_g}"):
-                                            list_fg[idx_img_g] = f"{path_img_g}|{ubah_akses_item_g}"
-                                            new_fg_str = ",".join(list_fg)
-                                            execute_query("UPDATE galeri_umum SET foto_galeri = ? WHERE id = ?", (new_fg_str, id_mp_aktif))
-                                            st.success(f"Hak akses File {idx_img_g + 1} berhasil diperbarui menjadi {ubah_akses_item_g}!")
-                                            st.rerun()
+                                with col_pg2:
+                                    ubah_akses_item_g = st.selectbox(
+                                        f"Ubah Akses File {idx_img_g + 1}", 
+                                        ["Public", "Private"], 
+                                        index=0 if akses_file_item_g == "Public" else 1, 
+                                        key=f"ubah_akses_g_{id_mp_aktif}_{idx_img_g}"
+                                    )
+                                    
+                                    if st.button(f"🗑️ Hapus File Ini", key=f"btn_del_file_g_single_{id_mp_aktif}_{idx_img_g}"):
+                                        list_fg.pop(idx_img_g)
+                                        new_fg_str = ",".join(list_fg)
+                                        execute_query("UPDATE galeri_umum SET foto_galeri = ? WHERE id = ?", (new_fg_str, id_mp_aktif))
+                                        st.success(f"File {idx_img_g + 1} berhasil dihapus!")
+                                        st.rerun()
+                                        
+                                    if st.button(f"💾 Simpan Akses File Ini", key=f"btn_save_akses_g_{id_mp_aktif}_{idx_img_g}"):
+                                        list_fg[idx_img_g] = f"{path_img_g}|{ubah_akses_item_g}"
+                                        new_fg_str = ",".join(list_fg)
+                                        execute_query("UPDATE galeri_umum SET foto_galeri = ? WHERE id = ?", (new_fg_str, id_mp_aktif))
+                                        st.success(f"Hak akses File {idx_img_g + 1} berhasil diperbarui!")
+                                        st.rerun()
                         else:
                             st.info("Tidak ada file yang terlampir pada postingan ini.")
 
@@ -2459,33 +2451,39 @@ elif menu == "Galeri & Feed Umum":
                                 existing_paths_g = list_fg
                                 
                                 if edit_foto_files_g:
-                                    for efg_item in edit_foto_files_g:
-                                        f_path_g = os.path.join(UPLOAD_DIR, f"g_{datetime.now().strftime('%Y%m%d%H%M%S')}_{efg_item.name}")
-                                        with open(f_path_g, "wb") as f:
-                                            f.write(efg_item.getbuffer())
-                                        
-                                        akses_efg = edit_file_access_settings_g.get(efg_item.name, "Private")
-                                        existing_paths_g.append(f"{f_path_g}|{akses_efg}")
+                                    with st.spinner("Mengunggah file baru ke Cloudinary..."):
+                                        for efg_item in edit_foto_files_g:
+                                            try:
+                                                upload_efg = cloudinary.uploader.upload(efg_item, resource_type="auto")
+                                                efg_url = upload_efg.get("secure_url")
+                                                
+                                                akses_efg = edit_file_access_settings_g.get(efg_item.name, "Private")
+                                                existing_paths_g.append(f"{efg_url}|{akses_efg}")
+                                            except Exception as e:
+                                                st.error(f"Gagal upload {efg_item.name}: {e}")
                                         
                                 if edit_cam_file_g is not None:
-                                    c_path_g = os.path.join(UPLOAD_DIR, f"g_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                    with open(c_path_g, "wb") as f:
-                                        f.write(edit_cam_file_g.getbuffer())
-                                    existing_paths_g.append(f"{c_path_g}|{edit_cam_akses_g}")
-                                    
+                                    with st.spinner("Mengunggah foto kamera baru..."):
+                                        try:
+                                            upload_ecam_g = cloudinary.uploader.upload(edit_cam_file_g, resource_type="image")
+                                            ecam_url_g = upload_ecam_g.get("secure_url")
+                                            existing_paths_g.append(f"{ecam_url_g}|{edit_cam_akses_g}")
+                                        except Exception as e:
+                                            st.error(f"Gagal upload kamera: {e}")
+                                        
                                 foto_g_path_e = ",".join(existing_paths_g)
                                 execute_query(
                                     "UPDATE galeri_umum SET konten = ?, foto_galeri = ? WHERE id = ?",
                                     (edit_konten_post, foto_g_path_e, id_mp_aktif)
                                 )
-                                st.success("Postingan dan penambahan file baru berhasil disimpan!")
+                                st.success("Postingan dan file baru berhasil disimpan di Cloudinary!")
                                 st.rerun()
                         with col_eg2:
                             if st.button("🗑️ Hapus Postingan Ini Sepenuhnya", key=f"btn_del_post_full_{id_mp_aktif}"):
                                 execute_query("DELETE FROM galeri_umum WHERE id = ?", (id_mp_aktif,))
                                 st.success("Postingan berhasil dihapus dari sistem!")
                                 st.rerun()
-
+                               
 # --- 6. LAYANAN SANTUNAN & KONTAK ---
 elif menu == "Layanan Santunan & Kontak":
     st.title("🤝 Layanan Santunan Sosial & Kontak Darurat")
@@ -2640,20 +2638,25 @@ elif menu == "Manajemen SanFK & KTA":
                     if nama:
                         final_foto_val = ""
                         
-                        # Cek jika user menggunakan metode Unggah Berkas
+                        # Upload ke Cloudinary jika menggunakan Unggah Berkas
                         if metode_foto_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file is not None:
-                            foto_path = os.path.join(UPLOAD_DIR, foto_file.name)
-                            with open(foto_path, "wb") as f:
-                                f.write(foto_file.getbuffer())
-                            final_foto_val = f"{foto_path}|{akses_sanfk}"
+                            with st.spinner("Mengunggah berkas ke Cloudinary..."):
+                                try:
+                                    upload_res = cloudinary.uploader.upload(foto_file, resource_type="auto")
+                                    foto_url = upload_res.get("secure_url")
+                                    final_foto_val = f"{foto_url}|{akses_sanfk}"
+                                except Exception as e:
+                                    st.error(f"Gagal mengunggah file: {e}")
                             
-                        # Cek jika user menggunakan metode Kamera Langsung
+                        # Upload ke Cloudinary jika menggunakan Kamera Langsung
                         elif metode_foto_sanfk == "Gunakan Kamera Langsung" and cam_file is not None:
-                            nama_file_unik = f"cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-                            foto_path_cam = os.path.join(UPLOAD_DIR, nama_file_unik)
-                            with open(foto_path_cam, "wb") as f:
-                                f.write(cam_file.getbuffer())
-                            final_foto_val = f"{foto_path_cam}|{akses_sanfk}"
+                            with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
+                                try:
+                                    upload_cam = cloudinary.uploader.upload(cam_file, resource_type="image")
+                                    cam_url = upload_cam.get("secure_url")
+                                    final_foto_val = f"{cam_url}|{akses_sanfk}"
+                                except Exception as e:
+                                    st.error(f"Gagal mengunggah foto kamera: {e}")
                         
                         execute_query(
                             "INSERT INTO anggota (nama, sub_mawil, jenis_kelamin, alamat, status, letnan_ijazah, tanggal_ijazah, kontak, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -2730,16 +2733,21 @@ elif menu == "Manajemen SanFK & KTA":
                             foto_path_e = file_foto_lama
                             
                             if metode_ganti_sanfk == "Unggah Berkas (PDF, Foto, dll)" and foto_file_e is not None:
-                                foto_path_e = os.path.join(UPLOAD_DIR, foto_file_e.name)
-                                with open(foto_path_e, "wb") as f:
-                                    f.write(foto_file_e.getbuffer())
+                                with st.spinner("Mengunggah file baru ke Cloudinary..."):
+                                    try:
+                                        upload_efe = cloudinary.uploader.upload(foto_file_e, resource_type="auto")
+                                        foto_path_e = upload_efe.get("secure_url")
+                                    except Exception as e:
+                                        st.error(f"Gagal upload file: {e}")
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
                             elif metode_ganti_sanfk == "Gunakan Kamera Langsung" and cam_file_e is not None:
-                                nama_file_unik_e = f"cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-                                foto_path_cam_e = os.path.join(UPLOAD_DIR, nama_file_unik_e)
-                                with open(foto_path_cam_e, "wb") as f:
-                                    f.write(cam_file_e.getbuffer())
-                                final_foto_e_val = f"{foto_path_cam_e}|{edit_akses_sanfk}"
+                                with st.spinner("Mengunggah foto kamera baru..."):
+                                    try:
+                                        upload_came = cloudinary.uploader.upload(cam_file_e, resource_type="image")
+                                        foto_path_e = upload_came.get("secure_url")
+                                    except Exception as e:
+                                        st.error(f"Gagal upload kamera: {e}")
+                                final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
                             else:
                                 final_foto_e_val = f"{foto_path_e}|{edit_akses_sanfk}"
                             
@@ -2748,7 +2756,7 @@ elif menu == "Manajemen SanFK & KTA":
                                 (nama_e, sub_mawil_e, jenis_kelamin_e, alamat_e, status_e, letnan_e, str(tgl_ijazah_e), kontak_e, final_foto_e_val, id_terpilih)
                             )
                             
-                            st.success(f"Data SanFK {nama_e} berhasil diperbarui!")
+                            st.success(f"Data SanFK {nama_e} berhasil diperbarui di Cloudinary!")
                             st.rerun()
                     with col_eb2:
                         if st.button("🗑️ Hapus SanFK Ini", key=f"btn_del_agt_{id_terpilih}"):
@@ -2771,12 +2779,15 @@ elif menu == "Manajemen SanFK & KTA":
             else:
                 foto_path, akses_kta = foto_full, "Public"
                 
-            base64_img = get_image_base64(foto_path) if foto_path else None
-            
-            if base64_img:
-                img_html = f'<img src="{base64_img}" style="width: 85px; height: 105px; object-fit: cover; border-radius: 4px; border: 1px solid #0E6655;">'
+            # Jika berupa URL Cloudinary, langsung render tag img menggunakan URL tersebut
+            if foto_path and (foto_path.startswith("http://") or foto_path.startswith("https://")):
+                img_html = f'<img src="{foto_path}" style="width: 85px; height: 105px; object-fit: cover; border-radius: 4px; border: 1px solid #0E6655;">'
             else:
-                img_html = '<div style="font-size: 10px; color: #555; padding: 25px 0; text-align: center;">Private / No File</div>'
+                base64_img = get_image_base64(foto_path) if foto_path else None
+                if base64_img:
+                    img_html = f'<img src="{base64_img}" style="width: 85px; height: 105px; object-fit: cover; border-radius: 4px; border: 1px solid #0E6655;">'
+                else:
+                    img_html = '<div style="font-size: 10px; color: #555; padding: 25px 0; text-align: center;">Private / No File</div>'
             
             st.markdown(f"""
             <div style="border: 2px solid #0E6655; border-radius: 10px; padding: 20px; background-color: #E8F8F5; color: #0e3d30; max-width: 500px;">
@@ -2806,7 +2817,7 @@ elif menu == "Manajemen SanFK & KTA":
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
+           
 # --- 5. KEUANGAN & KOTAK HIJAU ---
 if menu == "Keuangan & Kotak Hijau":
     # Batasi akses hanya untuk SanFK dan Bendahara Mawil
@@ -2939,13 +2950,19 @@ if menu == "Keuangan & Kotak Hijau":
                         if btn_kirim_dok:
                             path_bukti = ""
                             if up_bukti_file is not None:
-                                path_bukti = os.path.join(UPLOAD_DIR, f"tf_{datetime.now().strftime('%Y%m%d%H%M%S')}_{up_bukti_file.name}")
-                                with open(path_bukti, "wb") as f:
-                                    f.write(up_bukti_file.getbuffer())
+                                with st.spinner("Mengunggah bukti transfer ke Cloudinary..."):
+                                    try:
+                                        upload_tf = cloudinary.uploader.upload(up_bukti_file, resource_type="auto")
+                                        path_bukti = upload_tf.get("secure_url")
+                                    except Exception as e:
+                                        st.error(f"Gagal mengunggah file: {e}")
                             elif cam_bukti is not None:
-                                path_bukti = os.path.join(UPLOAD_DIR, f"tf_cam_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg")
-                                with open(path_bukti, "wb") as f:
-                                    f.write(cam_bukti.getbuffer())
+                                with st.spinner("Mengunggah foto kamera ke Cloudinary..."):
+                                    try:
+                                        upload_cam_tf = cloudinary.uploader.upload(cam_bukti, resource_type="image")
+                                        path_bukti = upload_cam_tf.get("secure_url")
+                                    except Exception as e:
+                                        st.error(f"Gagal mengunggah foto kamera: {e}")
 
                             if path_bukti or ket_tf:
                                 final_bukti_str = f"{path_bukti}|Private" if path_bukti else ""
@@ -2955,7 +2972,7 @@ if menu == "Keuangan & Kotak Hijau":
                                 )
                                 
                                 st.session_state["uploader_counter"] += 1
-                                st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dan komentar berhasil dikirim untuk kategori **{kategori_cf}** (Nominal: **Rp {jumlah_tf:,.0f}**). Form dan uploader telah dibersihkan untuk sesi baru."
+                                st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dan komentar berhasil dikirim ke Cloudinary untuk kategori **{kategori_cf}** (Nominal: **Rp {jumlah_tf:,.0f}**). Form dan uploader telah dibersihkan untuk sesi baru."
                                 st.rerun()
                             else:
                                 st.warning("⚠️ Harap lampirkan bukti transfer atau isi komentar terlebih dahulu!")
@@ -2982,7 +2999,7 @@ if menu == "Keuangan & Kotak Hijau":
         # --- TAB 3: ARSIP & KOREKSI BUKTI ---
         with tab_f3:
             st.subheader("📁 Arsip & Koreksi Bukti Transfer")
-            st.info("🔒 Tab ini menampilkan arsip bukti transfer. Bendahara Mawil dapat mengunduh bukti yang dikirimkan SanFK, sedangkan penghapusan arsip hanya dapat dilakukan oleh pengirim (SanFK) atau pembuat data.")
+            st.info("🔒 Tab ini menampilkan arsip bukti transfer. Bendahara Mawil dapat melihat dan membuka bukti yang dikirimkan SanFK, sedangkan penghapusan arsip hanya dapat dilakukan oleh pengirim (SanFK) atau pembuat data.")
 
             if role not in ["SanFK", "Bendahara Mawil"]:
                 st.warning("⚠️ Akses dibatasi.")
@@ -3012,20 +3029,14 @@ if menu == "Keuangan & Kotak Hijau":
                             b_str = r_arsip.get('bukti_transfer', '')
                             b_path = b_str.split("|")[0].strip() if "|" in b_str else b_str.strip()
                             
-                            if b_path and os.path.exists(b_path):
-                                ext_file = b_path.split('.')[-1].lower()
-                                if ext_file in ['jpg', 'jpeg', 'png']:
-                                    st.markdown(f'<img src="{get_image_base64(b_path)}" style="max-width: 250px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 8px;">', unsafe_allow_html=True)
+                            if b_path:
+                                ext_file = b_path.split('.')[-1].lower().split('?')[0]
+                                if ext_file in ['jpg', 'jpeg', 'png', 'webp']:
+                                    st.markdown(f'<img src="{b_path}" style="max-width: 250px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 8px;">', unsafe_allow_html=True)
                                 else:
-                                    st.write("📄 Dokumen PDF/File Terlampir")
+                                    st.info("📄 Berkas / Dokumen Cloud Terlampir")
                                 
-                                with open(b_path, "rb") as file_dl:
-                                    st.download_button(
-                                        label=f"📥 Download Bukti (ID: {r_arsip['id']})",
-                                        data=file_dl,
-                                        file_name=os.path.basename(b_path),
-                                        key=f"dl_arsip_{r_arsip['id']}"
-                                    )
+                                st.markdown(f"[📥 Download / Buka Bukti (ID: {r_arsip['id']})]({b_path})", unsafe_allow_html=True)
                             
                             boleh_hapus = True
                             if role == "Bendahara Mawil" and r_arsip['pengirim'] != "Bendahara Mawil":
@@ -3035,18 +3046,13 @@ if menu == "Keuangan & Kotak Hijau":
                                 col_del1, col_del2 = st.columns([1, 4])
                                 with col_del1:
                                     if st.button("🗑️ Hapus Data Ini", key=f"btn_hapus_arsip_{r_arsip['id']}", type="primary"):
-                                        if b_path and os.path.exists(b_path):
-                                            try:
-                                                os.remove(b_path)
-                                            except:
-                                                pass
                                         execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (r_arsip['id'],))
                                         st.success(f"Data transaksi ID [{r_arsip['id']}] berhasil dihapus!")
                                         st.rerun()
                                 with col_del2:
                                     st.caption("Jika foto/dokumen salah, klik tombol hapus di samping, lalu unggah kembali melalui Tab 1.")
                             else:
-                                st.info("🔒 Arsip dari SanFK ini hanya dapat diunduh oleh Bendahara Mawil (penghapusan arsip wewenang SanFK pengirim).")
+                                st.info("🔒 Arsip dari SanFK ini hanya dapat dilihat oleh Bendahara Mawil (penghapusan arsip wewenang SanFK pengirim).")
 
                             st.divider()
 
@@ -3152,7 +3158,6 @@ if menu == "Keuangan & Kotak Hijau":
                                 "Dana dari Pusat (Baksos/Santunan)",
                                 "Lain-lain"
                             ]
-                            # Pastikan kategori lama ada dalam opsi, jika tidak tambahkan di awal
                             kat_lama = trx_detail_row['kategori']
                             if kat_lama not in kategori_opsi:
                                 kategori_opsi.insert(0, kat_lama)
@@ -3182,9 +3187,8 @@ if menu == "Keuangan & Kotak Hijau":
                                 st.rerun()
 
                             if btn_hapus_trx:
-                                # HANYA HAPUS BARIS DATA DI DATABASE TANPA MENYENTUH/MENGHAPUS FILE BUKTI FISIK DI FOLDER UPLOADS_FOTO
                                 execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_trx_pilih,))
-                                st.success(f"🗑️ Transaksi ID [{id_trx_pilih}] berhasil dihapus dari tabel cashflow (file bukti aman di arsip)!")
+                                st.success(f"🗑️ Transaksi ID [{id_trx_pilih}] berhasil dihapus dari tabel cashflow!")
                                 st.rerun()
 
                 # --- TOMBOL DOWNLOAD EXCEL & WORD ---
@@ -3399,7 +3403,6 @@ if menu == "Keuangan & Kotak Hijau":
                             st.rerun()
                             
                         if btn_h_oum:
-                            # HANYA HAPUS BARIS DATA DI DATABASE TANPA MENYENTUH/MENGHAPUS FILE BUKTI FISIK DI FOLDER UPLOADS_FOTO
                             execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_all_pilih,))
                             st.success(f"🗑️ Transaksi ID [{id_all_pilih}] berhasil dihapus! Form dibersihkan.")
                             st.rerun()
