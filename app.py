@@ -20,11 +20,29 @@ from github import Github
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO", "asriadi7819-cmd/fk-mawil-riau")
 
+def download_db_from_github():
+    """
+    Mengunduh database terbaru dari GitHub saat aplikasi pertama kali dimuat
+    agar data tidak tertimpa versi lama saat server restart/refresh.
+    """
+    if not GITHUB_TOKEN:
+        return
+
+    try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(GITHUB_REPO)
+        file_content = repo.get_contents("fk_mawil_riau.db")
+        
+        with open("fk_mawil_riau.db", "wb") as f:
+            f.write(file_content.decoded_content)
+    except Exception:
+        # Jika file belum ada di GitHub, biarkan membuat baru secara lokal
+        pass
+
+# Unduh database terbaru dari GitHub sebelum program membaca/membuat database
+download_db_from_github()
+
 def upload_file_to_github(uploaded_file, folder_name="uploads_foto"):
-    """
-    Mengunggah file dari Streamlit uploader langsung ke GitHub Repository.
-    Mengembalikan Raw URL publik file tersebut jika berhasil.
-    """
     if not GITHUB_TOKEN:
         st.error("GITHUB_TOKEN belum dikonfigurasi di Environment Variables!")
         return None
@@ -62,10 +80,6 @@ def upload_file_to_github(uploaded_file, folder_name="uploads_foto"):
         return None
 
 def backup_db_to_github():
-    """
-    Mengunggah file database SQLite (fk_mawil_riau.db) ke GitHub secara otomatis
-    setiap ada perubahan data, agar data tidak pernah hilang.
-    """
     if not GITHUB_TOKEN:
         return
 
@@ -99,7 +113,7 @@ def backup_db_to_github():
             )
     except Exception as e:
         print(f"Gagal backup database ke GitHub: {e}")
-
+        
 # Konfigurasi Halaman
 st.set_page_config(
    page_title="FK Mawil Riau",
