@@ -2873,7 +2873,7 @@ df_anggota_all = get_data("SELECT * FROM anggota")
 df_keuangan_all = get_data("SELECT * FROM keuangan")
 df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
 # --- 5. KEUANGAN & KOTAK HIJAU ---
-elif menu == "Keuangan & Kotak Hijau":
+if menu == "Keuangan & Kotak Hijau":
     if role not in ["SanFK", "Bendahara Mawil"]:
         st.error("⛔ Akses Ditolak!")
         st.warning("Menu 'Keuangan & Kotak Hijau' khusus diperuntukkan bagi role **SanFK** dan **Bendahara Mawil**.")
