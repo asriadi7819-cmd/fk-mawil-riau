@@ -2867,7 +2867,7 @@ df_keuangan_all = get_data("SELECT * FROM keuangan")
 df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
 
 # --- 5. KEUANGAN & KOTAK HIJAU ---
-if menu == "Keuangan & Kotak Hijau":
+elif menu == "Keuangan & Kotak Hijau":
     if role not in ["SanFK", "Bendahara Mawil"]:
         st.error("⛔ Akses Ditolak!")
         st.warning("Menu 'Keuangan & Kotak Hijau' khusus diperuntukkan bagi role **SanFK** dan **Bendahara Mawil**.")
@@ -3042,15 +3042,53 @@ if menu == "Keuangan & Kotak Hijau":
         if role == "Bendahara Mawil":
             with tab_f5:
                 st.subheader("🏦 Pendataan Rekening Tujuan")
+                
+                # Form Tambah Rekening Baru
                 with st.form("form_rek_baru", clear_on_submit=True):
+                    st.markdown("##### ➕ Tambah Rekening Baru")
                     n_bank = st.text_input("Nama Bank")
                     n_rek = st.text_input("Nomor Rekening")
                     n_an = st.text_input("Atas Nama")
                     n_ket = st.text_input("Keterangan")
-                    if st.form_submit_button("Simpan Rekening") and n_rek:
+                    if st.form_submit_button("Simpan Rekening Baru") and n_rek:
                         execute_query("INSERT INTO rekening_tujuan (nama_bank, nomor_rekening, atas_nama, keterangan) VALUES (?, ?, ?, ?)", (n_bank, n_rek, n_an, n_ket))
-                        st.success("Rekening disimpan!")
+                        st.success("Rekening berhasil disimpan!")
                         st.rerun()
+
+                st.markdown("---")
+                st.markdown("##### 🛠️ Ubah atau Hapus Rekening Terdaftar")
+                
+                df_rek_list = get_data("SELECT * FROM rekening_tujuan")
+                if df_rek_list.empty:
+                    st.info("Belum ada data rekening terdaftar.")
+                else:
+                    rek_dict = {f"ID [{r['id']}] - {r['nama_bank']} ({r['nomor_rekening']})": r['id'] for _, r in df_rek_list.iterrows()}
+                    pilih_rek_label = st.selectbox("Pilih Rekening yang Ingin Dikelola:", list(rek_dict.keys()), key="select_rek_edit_del")
+                    id_pilih_rek = rek_dict[pilih_rek_label]
+                    
+                    rek_row = get_data("SELECT * FROM rekening_tujuan WHERE id = ?", (id_pilih_rek,)).iloc[0]
+
+                    with st.form(f"form_edit_rek_{id_pilih_rek}", clear_on_submit=False):
+                        e_bank = st.text_input("Ubah Nama Bank", value=rek_row['nama_bank'], key=f"ebank_{id_pilih_rek}")
+                        e_rek = st.text_input("Ubah Nomor Rekening", value=rek_row['nomor_rekening'], key=f"erek_{id_pilih_rek}")
+                        e_an = st.text_input("Ubah Atas Nama", value=rek_row['atas_nama'], key=f"ean_{id_pilih_rek}")
+                        e_ket = st.text_input("Ubah Keterangan", value=rek_row['keterangan'], key=f"eket_{id_pilih_rek}")
+
+                        col_re1, col_re2 = st.columns(2)
+                        with col_re1:
+                            btn_simpan_rek = st.form_submit_button("💾 Simpan Perubahan")
+                        with col_re2:
+                            btn_hapus_rek = st.form_submit_button("🗑️ Hapus Rekening Ini")
+
+                        if btn_simpan_rek:
+                            execute_query("UPDATE rekening_tujuan SET nama_bank = ?, nomor_rekening = ?, atas_nama = ?, keterangan = ? WHERE id = ?", (e_bank, e_rek, e_an, e_ket, id_pilih_rek))
+                            st.success("Data rekening berhasil diperbarui!")
+                            st.rerun()
+
+                        if btn_hapus_rek:
+                            execute_query("DELETE FROM rekening_tujuan WHERE id = ?", (id_pilih_rek,))
+                            st.success("Rekening berhasil dihapus!")
+                            st.rerun()
 
             with tab_f6:
                 st.subheader("🛠️ Otoritas & Validasi Transaksi")
