@@ -171,7 +171,6 @@ def init_db():
         )
     ''')
     
-    # Migrasi aman untuk kolom nama_fb jika tabel sudah ada sebelumnya
     try:
         cursor.execute("ALTER TABLE anggota ADD COLUMN nama_fb TEXT")
     except sqlite3.OperationalError:
@@ -433,12 +432,20 @@ def get_data(query, params=()):
     return df
 
 def execute_query(query, params=()):
-    conn = sqlite3.connect('fk_mawil_riau.db')
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    conn.commit()
-    conn.close()
-    backup_db_to_github()
+    try:
+        conn = sqlite3.connect('fk_mawil_riau.db')
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Gagal menyimpan ke database lokal: {e}")
+        return
+
+    try:
+        backup_db_to_github()
+    except Exception as e:
+        print(f"Info: Backup GitHub dilewati sementara: {e}")
 
 try:
     cookie_logged_in = cookie_manager.get("fk_logged_in")
@@ -460,7 +467,6 @@ if "nama_sanfk" not in st.session_state:
 role = st.session_state.role
 sanfk_aktif_terpilih = st.session_state.nama_sanfk if "nama_sanfk" in st.session_state else ""
 
-# Ambil sub wilayah jika user adalah Ketua Sub Mawil
 sub_mawil_aktif_terpilih = "-"
 if role == "Ketua Sub Mawil":
     df_sub_C = get_data("SELECT sub_wilayah FROM users WHERE username = ?", (st.session_state.username,))
@@ -767,7 +773,6 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
         st.subheader("🔑 Pengaturan Kode Verifikasi / Captcha per SanFK & Role")
         st.markdown("Atur kode verifikasi/captcha unik untuk masing-masing anggota SanFK secara individual atau berdasarkan role pengurus.")
         
-        # --- INISIALISASI SESSION STATE AMAN UNTUK CAPTCHA ---
         if "gen_captcha_code" not in st.session_state:
             st.session_state.gen_captcha_code = f"SanFK-{random.randint(1000, 9999)}"
         
@@ -864,11 +869,6 @@ if menu == "Manajemen Akun & Role" and role == "Superadmin":
                         f.write(uploaded_db.getbuffer())
                     st.success("Database berhasil dipulihkan! Memuat ulang aplikasi...")
                     st.rerun()
-
-df_anggota_all = get_data("SELECT * FROM anggota")
-df_keuangan_all = get_data("SELECT * FROM keuangan")
-df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
-
 # --- 1. BERANDA & PENGUMUMAN ---
 if menu == "Beranda & Pengumuman":
     st.title("Selamat Datang di Sistem Informasi FK Mawil Riau")
