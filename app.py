@@ -2865,3 +2865,202 @@ if menu == "Manajemen SanFK & KTA":
 df_anggota_all = get_data("SELECT * FROM anggota")
 df_keuangan_all = get_data("SELECT * FROM keuangan")
 df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
+
+# --- 5. KEUANGAN & KOTAK HIJAU ---
+elif menu == "Keuangan & Kotak Hijau":
+    if role not in ["SanFK", "Bendahara Mawil"]:
+        st.error("⛔ Akses Ditolak!")
+        st.warning("Menu 'Keuangan & Kotak Hijau' khusus diperuntukkan bagi role **SanFK** dan **Bendahara Mawil**.")
+    else:
+        st.title("💰 Keuangan Terpusat, Rekening Bersama, & Bukti Transfer Mandiri")
+        
+        st.info("""
+        **Ketentuan Alur Keuangan & Kotak Hijau:**
+        1. **Iuran Kas SanFK & Wakaf Produktif:** Disetor oleh SanFK ke Bendahara Mawil dan dikelola langsung oleh Bendahara Mawil.
+        2. **Kotak Hijau:** Penyaluran saja (disetor dari pengelola kotak hijau ke Bendahara Mawil, lalu disetor ke bendahara pusat).
+        3. **Dana dari Pusat (Baksos/Santunan):** Bendahara Mawil menerima dari pusat dan langsung menyalurkan.
+        4. **Baksos Lokal:** Disetor langsung ke Rekening Padepokan dengan kode 3 angka nomor keanggotaan.
+        5. **Infaq Palestina:** Disetor langsung dengan kode unik `888`.
+        6. **Infaq Jabung:** Disetor langsung ke Rekening Pengurus di Jabung.
+        """)
+
+        if role == "Bendahara Mawil":
+            tab_f1, tab_f3, tab_f4, tab_f5, tab_f6 = st.tabs([
+                "💳 Info Rekening & Unggah",
+                "📁 Arsip & Koreksi Bukti",
+                "📊 Cashflow & Kategori",
+                "🏦 Pendataan Rekening",
+                "🛠️ Otoritas Transaksi"
+            ])
+            tab_f2 = None
+        elif role == "SanFK":
+            tab_f1, tab_f2, tab_f3, tab_f4 = st.tabs([
+                "💳 Info Rekening & Unggah",
+                "⏳ Menunggu Validasi",
+                "📁 Arsip & Koreksi Bukti",
+                "📊 Cashflow & Kategori"
+            ])
+            tab_f5 = None
+            tab_f6 = None
+        else:
+            tab_f1, tab_f3, tab_f4 = st.tabs([
+                "💳 Info Rekening & Unggah",  
+                "📁 Arsip & Koreksi Bukti",
+                "📊 Cashflow & Kategori"
+            ])
+            tab_f2 = None
+            tab_f5 = None
+            tab_f6 = None
+
+        with tab_f1:
+            st.subheader("💳 Informasi Nomor Rekening Tujuan Transfer")
+            df_rek = get_data("SELECT * FROM rekening_tujuan")
+            if df_rek.empty:
+                st.info("Belum ada nomor rekening tujuan yang didata oleh Bendahara Mawil.")
+            else:
+                for _, r_rek in df_rek.iterrows():
+                    st.markdown(f"""
+                    <div style="background: #E8F8F5; padding: 12px; border-radius: 8px; border: 1px solid #0E6655; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #0E6655;">🏦 {r_rek['nama_bank']}</h4>
+                        <p style="margin: 4px 0; font-size: 16px;"><b>No. Rekening:</b> <code>{r_rek['nomor_rekening']}</code></p>
+                        <p style="margin: 2px 0;"><b>Atas Nama:</b> {r_rek['atas_nama']}</p>
+                        <p style="margin: 2px 0; font-size: 13px; color: #555;"><i>{r_rek['keterangan']}</i></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.subheader("📤 Formulir Unggah Bukti Transfer & Komentar")
+            
+            if "uploader_counter" not in st.session_state:
+                st.session_state["uploader_counter"] = 0
+
+            if "sukses_kirim_notif" in st.session_state:
+                st.success(st.session_state["sukses_kirim_notif"])
+                del st.session_state["sukses_kirim_notif"]
+
+            nama_pengirim_aktif = sanfk_aktif_terpilih if role == "SanFK" else "Bendahara Mawil"
+            if role == "SanFK":
+                if not sanfk_aktif_terpilih:
+                    st.warning("⚠️ Silakan pilih profil SanFK Anda di sidebar terlebih dahulu.")
+                else:
+                    st.info(f"👤 Pengirim (SanFK): **{sanfk_aktif_terpilih}**")
+                    d_sanfk_info = get_data("SELECT sub_mawil FROM anggota WHERE nama = ?", (sanfk_aktif_terpilih,))
+                    sub_mw_asal = d_sanfk_info.iloc[0]['sub_mawil'] if not d_sanfk_info.empty else "Pekanbaru"
+            else:
+                nama_pengirim_aktif = st.text_input("Nama Petugas / Pengirim:", value="Bendahara Mawil", key="input_nama_bendahara_f1")
+                sub_mw_asal = st.selectbox("Asal Sub Mawil / Posko:", DAFTAR_KAB_KOTA + ["Pusat"], key="select_submw_bendahara_f1")
+
+            if role != "SanFK" or sanfk_aktif_terpilih:
+                metode_unggah = st.radio("Metode Unggah:", ["Unggah File (JPG, PNG, PDF)", "Gunakan Kamera Langsung"], horizontal=True, key="radio_metode_sanfk_f1_live")
+                
+                up_bukti_file = None
+                cam_bukti = None
+
+                if metode_unggah == "Unggah File (JPG, PNG, PDF)":
+                    up_bukti_file = st.file_uploader("Pilih File Bukti Transfer", type=["jpg", "jpeg", "png", "pdf"], key=f"up_file_sanfk_f1_single_{st.session_state['uploader_counter']}")
+                else:
+                    cam_bukti = st.camera_input("Potret Bukti Transfer dengan Kamera", key=f"cam_input_sanfk_f1_{st.session_state['uploader_counter']}")
+
+                with st.form("form_unggah_bukti_mandiri", clear_on_submit=True):
+                    if role == "SanFK":
+                        kategori_cf = "Menunggu Validasi Bendahara"
+                        st.markdown("🏷️ Kategori Setoran: **Menunggu Validasi Bendahara** *(Otomatis)*")
+                        jumlah_tf = st.number_input("Nominal Transfer (Rp)", min_value=0.0, step=10000.0, key="num_nominal_sanfk_f1")
+                        jenis_arus_tf = "Masuk (Setoran)"
+                    else:
+                        kategori_cf = st.selectbox(
+                            "Pilih Kategori Transaksi:", 
+                            ["Iuran Kas SanFK", "Wakaf Produktif", "Kotak Hijau", "Dana dari Pusat (Baksos/Santunan)", "Lain-lain"], 
+                            key="select_kategori_bendahara_f1_live"
+                        )
+                        jumlah_tf = st.number_input("Nominal Transaksi (Rp)", min_value=0.0, step=10000.0, key="num_nominal_bendahara_f1_live")
+                        jenis_arus_tf = st.selectbox("Jenis Arus Dana:", ["Masuk (Setoran)", "Keluar / Penyaluran"], key="select_arus_bendahara_f1_live")
+
+                    ket_tf = st.text_area("Komentar / Catatan Transfer:", key="textarea_ket_tf_f1_live")
+                    btn_kirim_dok = st.form_submit_button("Kirim Bukti Transfer & Komentar")
+                    
+                    if btn_kirim_dok:
+                        path_bukti = ""
+                        if up_bukti_file is not None:
+                            with st.spinner("Mengunggah bukti transfer ke GitHub..."):
+                                path_bukti = upload_file_to_github(up_bukti_file, folder_name="uploads_foto")
+                        elif cam_bukti is not None:
+                            with st.spinner("Mengunggah foto kamera ke GitHub..."):
+                                path_bukti = upload_file_to_github(cam_bukti, folder_name="uploads_foto")
+
+                        if path_bukti or ket_tf:
+                            final_bukti_str = f"{path_bukti}|Private" if path_bukti else ""
+                            execute_query(
+                                "INSERT INTO cashflow_transaksi (kategori, pengirim, sub_mawil, tanggal, jumlah, jenis_arus, keterangan, bukti_transfer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                (kategori_cf, nama_pengirim_aktif, sub_mw_asal, str(date.today()), jumlah_tf, jenis_arus_tf, ket_tf, final_bukti_str)
+                            )
+                            st.session_state["uploader_counter"] += 1
+                            st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dikirim untuk kategori **{kategori_cf}**."
+                            st.rerun()
+                        else:
+                        	st.warning("⚠️ Harap lampirkan bukti transfer atau isi komentar!")
+
+        if role == "SanFK" and tab_f2 is not None:
+            with tab_f2:
+                st.subheader("⏳ Status Setoran Anda yang Menunggu Validasi")
+                if sanfk_aktif_terpilih:
+                    df_menunggu = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? AND kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC", (sanfk_aktif_terpilih,))
+                    if df_menunggu.empty:
+                        st.success("🎉 Tidak ada setoran yang menunggu validasi.")
+                    else:
+                        df_t_pen = df_menunggu[['id', 'tanggal', 'pengirim', 'sub_mawil', 'jumlah', 'keterangan']].copy()
+                        df_t_pen.columns = ['ID', 'Tanggal', 'Pengirim', 'Sub Mawil', 'Jumlah (Rp)', 'Catatan']
+                        st.dataframe(df_t_pen, use_container_width=True)
+
+        with tab_f3:
+            st.subheader("📁 Arsip & Koreksi Bukti Transfer")
+            df_arsip = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? ORDER BY id DESC", (sanfk_aktif_terpilih,)) if role == "SanFK" else get_data("SELECT * FROM cashflow_transaksi ORDER BY id DESC")
+            if df_arsip.empty:
+                st.info("Belum ada arsip transaksi.")
+            else:
+                for _, r_arsip in df_arsip.iterrows():
+                    st.markdown(f"**Tanggal:** {r_arsip['tanggal']} | **Kategori:** {r_arsip['kategori']} | **Nominal:** Rp {r_arsip['jumlah']:,.0f}")
+                    b_str = r_arsip.get('bukti_transfer', '')
+                    b_path = b_str.split("|")[0].strip() if "|" in b_str else b_str.strip()
+                    if b_path:
+                        st.markdown(f"[📥 Buka Bukti Transaksi]({b_path})", unsafe_allow_html=True)
+                    if role == "Superadmin" or role == "Bendahara Mawil" or r_arsip['pengirim'] == sanfk_aktif_terpilih:
+                        if st.button("🗑️ Hapus Data Ini", key=f"del_arsip_{r_arsip['id']}"):
+                            execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (r_arsip['id'],))
+                            st.success("Data dihapus!")
+                            st.rerun()
+                    st.divider()
+
+        with tab_f4:
+            st.subheader("📊 Laporan Cashflow Terstruktur")
+            df_cf_all = get_data("SELECT * FROM cashflow_transaksi WHERE kategori != 'Menunggu Validasi Bendahara' ORDER BY tanggal ASC")
+            if not df_cf_all.empty:
+                df_t_show = df_cf_all[['id', 'tanggal', 'kategori', 'pengirim', 'sub_mawil', 'jumlah', 'jenis_arus', 'keterangan']].copy()
+                df_t_show.columns = ['ID', 'Tanggal', 'Kategori', 'Pengirim', 'Sub Mawil', 'Jumlah (Rp)', 'Arus', 'Keterangan']
+                st.dataframe(df_t_show, use_container_width=True, hide_index=True)
+
+        if role == "Bendahara Mawil":
+            with tab_f5:
+                st.subheader("🏦 Pendataan Rekening Tujuan")
+                with st.form("form_rek_baru", clear_on_submit=True):
+                    n_bank = st.text_input("Nama Bank")
+                    n_rek = st.text_input("Nomor Rekening")
+                    n_an = st.text_input("Atas Nama")
+                    n_ket = st.text_input("Keterangan")
+                    if st.form_submit_button("Simpan Rekening") and n_rek:
+                        execute_query("INSERT INTO rekening_tujuan (nama_bank, nomor_rekening, atas_nama, keterangan) VALUES (?, ?, ?, ?)", (n_bank, n_rek, n_an, n_ket))
+                        st.success("Rekening disimpan!")
+                        st.rerun()
+
+            with tab_f6:
+                st.subheader("🛠️ Otoritas & Validasi Transaksi")
+                df_all_tf = get_data("SELECT * FROM cashflow_transaksi WHERE kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC")
+                if df_all_tf.empty:
+                    st.success("Semua transaksi sudah tervalidasi.")
+                else:
+                    for _, r_val in df_all_tf.iterrows():
+                        st.markdown(f"**Pengirim:** {r_val['pengirim']} | **Jumlah:** Rp {r_val['jumlah']:,.0f}")
+                        if st.button(f"Validasi ID [{r_val['id']}]", key=f"val_{r_val['id']}"):
+                            execute_query("UPDATE cashflow_transaksi SET kategori = 'Iuran Kas SanFK' WHERE id = ?", (r_val['id'],))
+                            st.success("Berhasil divalidasi!")
+                            st.rerun()
