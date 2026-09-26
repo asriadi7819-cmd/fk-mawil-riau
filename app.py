@@ -2999,11 +2999,9 @@ elif menu == "Keuangan & Kotak Hijau":
                             path_bukti = ""
                             if up_bukti_file is not None:
                                 with st.spinner("Mengunggah bukti transfer ke GitHub Repository (uploads_foto)..."):
-                                    # Disatukan ke folder uploads_foto
                                     path_bukti = upload_file_to_github(up_bukti_file, folder_name="uploads_foto")
                             elif cam_bukti is not None:
                                 with st.spinner("Mengunggah foto kamera ke GitHub Repository (uploads_foto)..."):
-                                    # Disatukan ke folder uploads_foto
                                     path_bukti = upload_file_to_github(cam_bukti, folder_name="uploads_foto")
 
                             if path_bukti or ket_tf:
@@ -3163,7 +3161,6 @@ elif menu == "Keuangan & Kotak Hijau":
 
                 st.markdown("---")
                 
-                # Tampilkan Tabel Data
                 df_t_show = df_cf_f[['id', 'tanggal', 'kategori', 'pengirim', 'sub_mawil', 'jumlah', 'jenis_arus', 'keterangan']].copy()
                 df_t_show.columns = ['ID', 'Tanggal', 'Kategori', 'Pengirim', 'Sub Mawil', 'Jumlah (Rp)', 'Arus', 'Keterangan']
                 st.dataframe(df_t_show, use_container_width=True, hide_index=True)
@@ -3320,7 +3317,7 @@ elif menu == "Keuangan & Kotak Hijau":
                             row_cells = table.add_row().cells
                             for i, val in enumerate(row):
                                 row_cells[i].text = str(val)
-                        
+                    
                     doc.save(output_word)
                     output_word.seek(0)
                     
@@ -3448,3 +3445,4 @@ elif menu == "Keuangan & Kotak Hijau":
                             execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (id_all_pilih,))
                             st.success(f"🗑️ Transaksi ID [{id_all_pilih}] berhasil dihapus! Form dibersihkan.")
                             st.rerun()
+
