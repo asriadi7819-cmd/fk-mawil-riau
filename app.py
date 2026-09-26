@@ -2870,7 +2870,6 @@ if menu == "Manajemen SanFK & KTA":
 df_anggota_all = get_data("SELECT * FROM anggota")
 df_keuangan_all = get_data("SELECT * FROM keuangan")
 df_cashflow_all = get_data("SELECT * FROM cashflow_transaksi")
-
 # --- 5. KEUANGAN & KOTAK HIJAU ---
 if menu == "Keuangan & Kotak Hijau":
     if role not in ["SanFK", "Bendahara Mawil"]:
@@ -2934,7 +2933,7 @@ if menu == "Keuangan & Kotak Hijau":
                     """, unsafe_allow_html=True)
 
             st.markdown("---")
-            st.subheader("📤 Formulir Unggah Bukti Transfer & Komentar")
+            st.subheader("📤 Formulir Unggah Bukti Transfer / Penyetoran Kotak Hijau")
             
             if "uploader_counter" not in st.session_state:
                 st.session_state["uploader_counter"] = 0
@@ -2970,24 +2969,24 @@ if menu == "Keuangan & Kotak Hijau":
                     if role == "SanFK":
                         kategori_cf = "Menunggu Validasi Bendahara"
                         st.markdown("🏷️ Kategori Setoran: **Menunggu Validasi Bendahara** *(Otomatis)*")
-                        jumlah_tf = st.number_input("Nominal Transfer (Rp)", min_value=0.0, step=10000.0, key="num_nominal_sanfk_f1")
+                        jumlah_tf = st.number_input("Nominal Penyetoran (Rp)", min_value=0.0, step=10000.0, key="num_nominal_sanfk_f1")
                         jenis_arus_tf = "Masuk (Setoran)"
                     else:
                         kategori_cf = st.selectbox(
                             "Pilih Kategori Transaksi:", 
-                            ["Iuran Kas SanFK", "Wakaf Produktif", "Kotak Hijau", "Dana dari Pusat (Baksos/Santunan)", "Lain-lain"], 
+                            ["Kotak Hijau", "Iuran Kas SanFK", "Wakaf Produktif", "Dana dari Pusat (Baksos/Santunan)", "Lain-lain"], 
                             key="select_kategori_bendahara_f1_live"
                         )
                         jumlah_tf = st.number_input("Nominal Transaksi (Rp)", min_value=0.0, step=10000.0, key="num_nominal_bendahara_f1_live")
                         jenis_arus_tf = st.selectbox("Jenis Arus Dana:", ["Masuk (Setoran)", "Keluar / Penyaluran"], key="select_arus_bendahara_f1_live")
 
-                    ket_tf = st.text_area("Komentar / Catatan Transfer:", key="textarea_ket_tf_f1_live")
-                    btn_kirim_dok = st.form_submit_button("Kirim Bukti Transfer & Komentar")
+                    ket_tf = st.text_area("Komentar / Catatan (Contoh: Penyetoran Kotak Hijau Wilayah...):", key="textarea_ket_tf_f1_live")
+                    btn_kirim_dok = st.form_submit_button("Kirim Bukti Penyetoran Kotak Hijau & Komentar")
                     
                     if btn_kirim_dok:
                         path_bukti = ""
                         if up_bukti_file is not None:
-                            with st.spinner("Mengunggah bukti transfer ke GitHub..."):
+                            with st.spinner("Mengunggah bukti ke GitHub..."):
                                 path_bukti = upload_file_to_github(up_bukti_file, folder_name="uploads_foto")
                         elif cam_bukti is not None:
                             with st.spinner("Mengunggah foto kamera ke GitHub..."):
@@ -3000,14 +2999,14 @@ if menu == "Keuangan & Kotak Hijau":
                                 (kategori_cf, nama_pengirim_aktif, sub_mw_asal, str(date.today()), jumlah_tf, jenis_arus_tf, ket_tf, final_bukti_str)
                             )
                             st.session_state["uploader_counter"] += 1
-                            st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Bukti transfer dikirim untuk kategori **{kategori_cf}**."
+                            st.session_state["sukses_kirim_notif"] = f"✅ Berhasil! Penyetoran Kotak Hijau dikirim untuk kategori **{kategori_cf}**."
                             st.rerun()
                         else:
-                        	st.warning("⚠️ Harap lampirkan bukti transfer atau isi komentar!")
+                            st.warning("⚠️ Harap lampirkan bukti transfer atau isi catatan terlebih dahulu!")
 
         if role == "SanFK" and tab_f2 is not None:
             with tab_f2:
-                st.subheader("⏳ Status Setoran Anda yang Menunggu Validasi")
+                st.subheader("⏳ Status Penyetoran Kotak Hijau / Setoran Anda yang Menunggu Validasi")
                 if sanfk_aktif_terpilih:
                     df_menunggu = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? AND kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC", (sanfk_aktif_terpilih,))
                     if df_menunggu.empty:
@@ -3018,7 +3017,7 @@ if menu == "Keuangan & Kotak Hijau":
                         st.dataframe(df_t_pen, use_container_width=True)
 
         with tab_f3:
-            st.subheader("📁 Arsip & Koreksi Bukti Transfer")
+            st.subheader("📁 Arsip Bukti Penyetoran Kotak Hijau & Transaksi")
             df_arsip = get_data("SELECT * FROM cashflow_transaksi WHERE pengirim = ? ORDER BY id DESC", (sanfk_aktif_terpilih,)) if role == "SanFK" else get_data("SELECT * FROM cashflow_transaksi ORDER BY id DESC")
             if df_arsip.empty:
                 st.info("Belum ada arsip transaksi.")
@@ -3032,12 +3031,12 @@ if menu == "Keuangan & Kotak Hijau":
                     if role == "Superadmin" or role == "Bendahara Mawil" or r_arsip['pengirim'] == sanfk_aktif_terpilih:
                         if st.button("🗑️ Hapus Data Ini", key=f"del_arsip_{r_arsip['id']}"):
                             execute_query("DELETE FROM cashflow_transaksi WHERE id = ?", (r_arsip['id'],))
-                            st.success("Data dihapus!")
+                            st.success("Data berhasil dihapus!")
                             st.rerun()
                     st.divider()
 
         with tab_f4:
-            st.subheader("📊 Laporan Cashflow Terstruktur")
+            st.subheader("📊 Laporan Cashflow Terstruktur (Termasuk Kotak Hijau)")
             df_cf_all = get_data("SELECT * FROM cashflow_transaksi WHERE kategori != 'Menunggu Validasi Bendahara' ORDER BY tanggal ASC")
             if not df_cf_all.empty:
                 df_t_show = df_cf_all[['id', 'tanggal', 'kategori', 'pengirim', 'sub_mawil', 'jumlah', 'jenis_arus', 'keterangan']].copy()
@@ -3048,24 +3047,31 @@ if menu == "Keuangan & Kotak Hijau":
             with tab_f5:
                 st.subheader("🏦 Pendataan Rekening Tujuan")
                 
-                # Form Tambah Rekening Baru
                 with st.form("form_rek_baru", clear_on_submit=True):
                     st.markdown("##### ➕ Tambah Rekening Baru")
-                    n_bank = st.text_input("Nama Bank")
-                    n_rek = st.text_input("Nomor Rekening")
-                    n_an = st.text_input("Atas Nama")
-                    n_ket = st.text_input("Keterangan")
-                    if st.form_submit_button("Simpan Rekening Baru") and n_rek:
-                        execute_query("INSERT INTO rekening_tujuan (nama_bank, nomor_rekening, atas_nama, keterangan) VALUES (?, ?, ?, ?)", (n_bank, n_rek, n_an, n_ket))
-                        st.success("Rekening berhasil disimpan!")
-                        st.rerun()
+                    n_bank = st.text_input("Nama Bank", key="t_bank_rek")
+                    n_rek = st.text_input("Nomor Rekening", key="t_no_rek")
+                    n_an = st.text_input("Atas Nama", key="t_an_rek")
+                    n_ket = st.text_input("Keterangan", key="t_ket_rek")
+                    
+                    btn_simpan_rek_baru = st.form_submit_button("Simpan Rekening Baru")
+                    if btn_simpan_rek_baru:
+                        if n_rek.strip():
+                            execute_query(
+                                "INSERT INTO rekening_tujuan (nama_bank, nomor_rekening, atas_nama, keterangan) VALUES (?, ?, ?, ?)", 
+                                (n_bank, n_rek, n_an, n_ket)
+                            )
+                            st.success("Rekening berhasil disimpan ke database!")
+                            st.rerun()
+                        else:
+                            st.warning("Nomor Rekening wajib diisi!")
 
                 st.markdown("---")
                 st.markdown("##### 🛠️ Ubah atau Hapus Rekening Terdaftar")
                 
                 df_rek_list = get_data("SELECT * FROM rekening_tujuan")
                 if df_rek_list.empty:
-                    st.info("Belum ada data rekening terdaftar.")
+                    st.info("💡 Belum ada data rekening terdaftar.")
                 else:
                     rek_dict = {f"ID [{r['id']}] - {r['nama_bank']} ({r['nomor_rekening']})": r['id'] for _, r in df_rek_list.iterrows()}
                     pilih_rek_label = st.selectbox("Pilih Rekening yang Ingin Dikelola:", list(rek_dict.keys()), key="select_rek_edit_del")
@@ -3086,7 +3092,10 @@ if menu == "Keuangan & Kotak Hijau":
                             btn_hapus_rek = st.form_submit_button("🗑️ Hapus Rekening Ini")
 
                         if btn_simpan_rek:
-                            execute_query("UPDATE rekening_tujuan SET nama_bank = ?, nomor_rekening = ?, atas_nama = ?, keterangan = ? WHERE id = ?", (e_bank, e_rek, e_an, e_ket, id_pilih_rek))
+                            execute_query(
+                                "UPDATE rekening_tujuan SET nama_bank = ?, nomor_rekening = ?, atas_nama = ?, keterangan = ? WHERE id = ?", 
+                                (e_bank, e_rek, e_an, e_ket, id_pilih_rek)
+                            )
                             st.success("Data rekening berhasil diperbarui!")
                             st.rerun()
 
@@ -3096,14 +3105,14 @@ if menu == "Keuangan & Kotak Hijau":
                             st.rerun()
 
             with tab_f6:
-                st.subheader("🛠️ Otoritas & Validasi Transaksi")
+                st.subheader("🛠️ Otoritas & Validasi Transaksi Kotak Hijau")
                 df_all_tf = get_data("SELECT * FROM cashflow_transaksi WHERE kategori = 'Menunggu Validasi Bendahara' ORDER BY id DESC")
                 if df_all_tf.empty:
-                    st.success("Semua transaksi sudah tervalidasi.")
+                    st.success("Semua transaksi kotak hijau/setoran sudah tervalidasi.")
                 else:
                     for _, r_val in df_all_tf.iterrows():
-                        st.markdown(f"**Pengirim:** {r_val['pengirim']} | **Jumlah:** Rp {r_val['jumlah']:,.0f}")
-                        if st.button(f"Validasi ID [{r_val['id']}]", key=f"val_{r_val['id']}"):
-                            execute_query("UPDATE cashflow_transaksi SET kategori = 'Iuran Kas SanFK' WHERE id = ?", (r_val['id'],))
-                            st.success("Berhasil divalidasi!")
+                        st.markdown(f"**Pengirim:** {r_val['pengirim']} | **Jumlah:** Rp {r_val['jumlah']:,.0f} | **Catatan:** {r_val['keterangan']}")
+                        if st.button(f"Validasi ke Kotak Hijau ID [{r_val['id']}]", key=f"val_kh_{r_val['id']}"):
+                            execute_query("UPDATE cashflow_transaksi SET kategori = 'Kotak Hijau' WHERE id = ?", (r_val['id'],))
+                            st.success("Berhasil divalidasi ke kategori Kotak Hijau!")
                             st.rerun()
